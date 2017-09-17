@@ -1,7 +1,18 @@
 package edu.rice.cs.bioinfo.programs.phylonet.algos.iterHeuristic;
 
+import edu.rice.cs.bioinfo.programs.phylonet.structs.tree.util.Trees;
+
 import java.io.*;
 import java.util.HashMap;
+import java.util.Iterator;
+
+import edu.rice.cs.bioinfo.programs.phylonet.structs.tree.model.Tree;
+import edu.rice.cs.bioinfo.programs.phylonet.structs.tree.model.TNode;
+
+import edu.rice.cs.bioinfo.programs.phylonet.structs.tree.model.MutableTree;
+import edu.rice.cs.bioinfo.programs.phylonet.structs.tree.model.TMutableNode;
+import edu.rice.cs.bioinfo.programs.phylonet.structs.tree.model.Tree;
+import edu.rice.cs.bioinfo.programs.phylonet.structs.tree.model.sti.STINode;
 
 /**
  * Created by doriswang on 9/1/17.
@@ -95,9 +106,170 @@ public class RawDataProcessor {
         stReader.close();
     }
 
+    //Input: SYR data
+    //Output:seq for RaxML without taxa that misswhole locus data
+    public void syrGetSeq() throws IOException{
+        String syrPath = "/Users/doriswang/PhyloNet/Data/SYRData/";
+
+        for (int ln = 0; ln < 19 ; ln++) {
+            BufferedReader stReader = new BufferedReader(new FileReader(syrPath + ln+"/seq1.phy"));
+            BufferedWriter stWriter = new BufferedWriter(new FileWriter("/Users/doriswang/PhyloNet/tools/standard-RAxML-master/" + ln +  "/dna.phy"));
+
+            String info = stReader.readLine().trim();
+            info = "21" + info.substring(2);
+            int j = 0;
+            while(j<26) {
+                String temp = info.split("\\t")[0];
+                if(temp.equals("0")||temp.equals("3")||temp.equals("15")||temp.equals("21")||temp.equals("11")){
+                    j++;
+                    info = stReader.readLine().trim();
+                    continue;
+                }
+
+                stWriter.write(info + "\n");
+                stWriter.flush();
+                info = stReader.readLine().trim();
+                j++;
+            }
+            stWriter.write(info + "\n");
+            stWriter.flush();
+            stReader.close();
+            stWriter.close();
+        }
+        for (int ln = 0; ln < 19 ; ln++) {
+            BufferedReader stReader = new BufferedReader(new FileReader(syrPath + ln+"/seq2.phy"));
+            BufferedWriter stWriter = new BufferedWriter(new FileWriter("/Users/doriswang/PhyloNet/tools/standard-RAxML-master/" + (ln+19) +  "/dna.phy"));
+
+            String info = stReader.readLine().trim();
+            info = "21" + info.substring(2);
+            int j = 0;
+            while(j<26) {
+                String temp = info.split("\\t")[0];
+                if(temp.equals("0")||temp.equals("3")||temp.equals("15")||temp.equals("21")||temp.equals("11")){
+                    j++;
+                    info = stReader.readLine().trim();
+                    continue;
+                }
+
+                stWriter.write(info + "\n");
+                stWriter.flush();
+                info = stReader.readLine().trim();
+                j++;
+            }
+            stWriter.write(info + "\n");
+            stWriter.flush();
+            stReader.close();
+            stWriter.close();
+        }
+    }
+
+    public String addTaxonName(String tempStr) throws IOException {
+        //String newTree;
+        String syrPath = "/Users/doriswang/PhyloNet/Data/SYRData/";
+        String mapPath = "/Users/doriswang/PhyloNet/Data/syr/20OGMapping.txt";
+        BufferedReader mapReader = new BufferedReader(new FileReader(mapPath));
+        HashMap<String, String> tMap = new HashMap<String, String>();
+        for (int i = 0; i < 21; i++) {
+            //String line =
+            String[] lines = mapReader.readLine().trim().split(":");
+            String i1 = lines[1];
+            String i2 = lines[2];
+            tMap.put(i1, i2);
+        }
+        MutableTree tempTree = (MutableTree) Trees.readTree(tempStr);
+        Iterator<TMutableNode> it = (Iterator<TMutableNode>) tempTree.getNodes().iterator();
+        while(it.hasNext()){
+            TMutableNode n = it.next();
+            if(n.isLeaf()) {
+                String name = tMap.get(n.getName());
+                n.setName(name);
+            }
+            else
+                continue;
+        }
+        return tempTree.toString();
+    }
+
+    public void doubleMap() throws IOException{
+        String syrPath = "/Users/doriswang/PhyloNet/Data/SYRData/";
+        String mapPath = "/Users/doriswang/PhyloNet/Data/syr/20OGMapping.txt";
+        BufferedReader mapReader = new  BufferedReader(new FileReader(mapPath));
+        HashMap<String,String> tMap = new HashMap<String,String>();
+        for(int i = 0;i< 21;i++){
+            //String line =
+            String[] lines = mapReader.readLine().trim().split(":");
+            String i1 = lines[0];
+            String i2 = lines[1];
+            tMap.put(i1,i2);
+        }
+        for (int ln = 0; ln < 19 ; ln++) {
+            BufferedReader stReader = new BufferedReader(new FileReader(syrPath + ln+"/seq1.phy"));
+            BufferedWriter stWriter = new BufferedWriter(new FileWriter("/Users/doriswang/PhyloNet/tools/standard-RAxML-master/" + ln +  "/dna.phy"));
+
+            String info = stReader.readLine().trim();
+            info = "21" + info.substring(2);
+            stWriter.write(info + "\n");
+            stWriter.flush();
+            int j = 0;
+            while(j<26) {
+                String[] temp = info.split("\\t");
+                if (tMap.containsKey(temp[0])) {
+                    stWriter.write(tMap.get(temp[0]) + " " + temp[1] + "\n");
+                    stWriter.flush();
+                    info = stReader.readLine().trim();
+                    j++;
+                } else {
+                    j++;
+                    info = stReader.readLine().trim();
+                    continue;
+                }
+            }
+            String[] temp = info.split("\\t");
+            if (tMap.containsKey(temp[0])) {
+                stWriter.write(tMap.get(temp[0]) + " " + temp[1] + "\n");
+                stWriter.flush();
+
+            }
+        }
+        for (int ln = 0; ln < 19 ; ln++) {
+            BufferedReader stReader = new BufferedReader(new FileReader(syrPath + ln+"/seq2.phy"));
+            BufferedWriter stWriter = new BufferedWriter(new FileWriter("/Users/doriswang/PhyloNet/tools/standard-RAxML-master/" + (ln+19) +  "/dna.phy"));
+
+            String info = stReader.readLine().trim();
+            info = "21" + info.substring(2);
+            stWriter.write(info + "\n");
+            stWriter.flush();
+            int j = 0;
+            while(j<26) {
+                String[] temp = info.split("\\t");
+                if (tMap.containsKey(temp[0])) {
+                    stWriter.write(tMap.get(temp[0]) + " " + temp[1] + "\n");
+                    stWriter.flush();
+                    info = stReader.readLine().trim();
+                    j++;
+                } else {
+                    j++;
+                    info = stReader.readLine().trim();
+                    continue;
+                }
+
+
+            }
+
+            String[] temp = info.split("\\t");
+            if (tMap.containsKey(temp[0])) {
+                stWriter.write(tMap.get(temp[0]) + " " + temp[1] + "\n");
+                stWriter.flush();
+
+            }
+            stReader.close();
+            stWriter.close();
+        }
+    }
+
     //get seq length and name
     public void getSeqInfo() throws IOException{
-        String syrPath = "/Users/doriswang/PhyloNet/Data/syr/syr011.txt";
+        String syrPath = "/Users/doriswa 2ng/PhyloNet/Data/syr/syr011.txt";
         BufferedReader stReader = new BufferedReader(new FileReader(syrPath));
         for (int ln = 0; ln < 6 ; ln++) {
             String tree = stReader.readLine().trim();
