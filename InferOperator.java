@@ -65,8 +65,12 @@ public class InferOperator {
     public static void main(String[] args) throws  IOException, InterruptedException, ParseException{
 
         InferOperator ifo = new InferOperator(1000);
-        RawDataProcessor rdp = new RawDataProcessor();
-        rdp.compare();
+        RawDataProcessor r = new RawDataProcessor();
+        String t = r.addTaxonName("(((19:0.00100000050002909,20:0.00100000050002909)I16:1.152946639631439,(16:0.4096753842384416,(18:0.00100000050002909,17:0.00100000050002909)I15:0.4086753837384125)I14:0.15927194422111118)I13:0.845163387858571,(((9:0.4456858217614752,(11:0.00100000050002909,10:0.00100000050002909)I11:0.4446858212614461)I10:0.2592441371312471,((15:0.00100000050002909,12:0.00100000050002909)I9:0.025201791973950474,(14:0.00100000050002909,13:0.00100000050002909)I8:0.12644601676689493)I7:0.07312226482896261)I6:0.4433325706515572,(3:0.2118922703896251,(2:0.20397143689818112,((1:0.00100000050002909,8:0.00100000050002909)I2:0.04122271582395445,((4:0.00100000050002909,5:0.00100000050002909)I17:0.08989500411654797,(6:0.00100000050002909,7:0.00100000050002909)I18:0.1380665477899139)I0:0.0)I1:0.06490488860823812)I3:0.007920833491443997)I4:1.0803345097601746)I5:0.3048617690139027)I12;");
+        System.out.println(t);
+        //r.doubleMap();
+//        String[] gts = ifo.getRAxMLStartT(38);
+//        System.out.println(gts[37]);
 //        int[] t1 = new int[]{665,525,420,260,260,469,796,296,220,262,256,194,447,849,798,522,267,274,471};
 //        ifo.loadSYR(2, t1, 26, new ArrayList<Alignment>());
 
@@ -240,29 +244,40 @@ public class InferOperator {
         return aln;
     }
 
-    public Alignment loadATP(int seqNum, int seqLength, int taxaNum, List<Alignment> trueSeq) throws IOException {
+
+    //load seq data from raxml
+    public List<Alignment> loadSYRByRX(int lociNum, int[] seqLength, int taxaNum, List<Alignment> trueSeq) throws IOException {
         //"seq_" + tid + "_" + seqLen +".nex";scale + "/seq_" + i + "_" + len + ".nex"
-        Map<String, String> locus = new HashMap<String, String>();
-        Map<String, String> fullLocus = new HashMap<String, String>();
-        String inputFile = "/Users/doriswang/PhyloNet/Data/syr/ATP/" + seqNum + "/syrSeq.txt";
-        BufferedReader br = new BufferedReader(new FileReader(inputFile));
-        String line = "";
-        for (int i = 0; i < taxaNum; i++) {
+        Map<String, String> locus = new HashMap<String, String>(); //20 taxa except 1
+        Map<String, String> fullLocus = new HashMap<String, String>(); // 21 taxa include i(OG)
+        List<Alignment> fullalns = new ArrayList<Alignment>();
+        for(int l = 0; l<lociNum; l++){
+            String inputFile = "/Users/doriswang/PhyloNet/tools/standard-RAxML-master/" + l + "/dna.phy";
+            BufferedReader br = new BufferedReader(new FileReader(inputFile));
+            String line = "";
+            String[] temp;
             line = br.readLine().trim();
-            String[] temp = line.split((":"));
-            if (temp.length > 2) {
-                temp[1] = temp[2];
+            temp = line.split(" ");
+            for (int i = 0; i < taxaNum; i++) {
+                line = br.readLine().trim();
+                temp = line.split((" "));
+                if (temp.length > 2) {
+                    temp[1] = temp[2];
+                }
+                String lociName = temp[0];
+                //String seq = temp[1].substring(0, seqLength);
+                locus.put(lociName, temp[1]);
+                fullLocus.put(lociName, temp[1]);
+                locus.remove("O");
             }
-            String lociName = temp[0];
-            String seq = temp[1].substring(0, seqLength);
-            locus.put(lociName, seq);
-            fullLocus.put(lociName, seq);
-            locus.remove("O");
+            br.close();
+            Alignment fullAln = new Alignment(fullLocus);
+            Alignment aln = new Alignment(locus);
+            trueSeq.add(aln);
+            fullalns.add(fullAln);
         }
-        Alignment fullAln = new Alignment(fullLocus);
-        Alignment aln = new Alignment(locus);
-        trueSeq.add(aln);
-        return fullAln;
+
+        return fullalns;
     }
 
 
@@ -411,7 +426,7 @@ public class InferOperator {
 ////t = 7 l = 106
     public List<Alignment> loadRData(String filePath, int repNum, int lociNum, List<Alignment> trueSeq, List<String> trueGTS) throws IOException {
         //#lociNum = 25
-        //TODO : 6.5 : count bp Number to decide if continue
+        // count bp Number to decide if continue
         for (int ln = 0; ln < lociNum; ln++) {
             String treeFile = filePath + "Rep" + repNum + ".gt" + ln + ".rose.tree.t";
             String seqFile = filePath + "Rep" + repNum + ".gt" + ln + ".rose.true.aln";
@@ -462,7 +477,7 @@ public class InferOperator {
 //        for(int t = 0;t<10;t++){
 //            stReader.readLine().trim();
 //        }
-        //TODO : 6.5 : count bp Number to decide if continue
+        // 6.5 : count bp Number to decide if continue
         for (int ln = 0; ln < lociNum ; ln++) {
             String tree = stReader.readLine().trim();
             trueGTS.add(tree);
@@ -646,7 +661,7 @@ public class InferOperator {
         Tree inferredST = glassInference.inferSpeciesTree(geneTrees);
         Utils._ESTIMATE_POP_SIZE = false;
         Utils._CONST_POP_SIZE = true;
-        Utils._POP_SIZE_MEAN = 0.036;
+        Utils._POP_SIZE_MEAN = 0.001;
         List<UltrametricTree> uList = getUTreeByTree(geneTrees);
         Map<String, Double> constraints = TemporalConstraints.getTemporalConstraints(uList, null, null);
         UltrametricNetwork stWithPara = new UltrametricNetwork(inferredST.toNewick(), uList, null);
@@ -812,7 +827,37 @@ public class InferOperator {
         return gts;
     }
 
-    //operator.getUpdateSh(lociNum, msSize);
+    //TODO
+    public String[] getRAxMLStartT(int lociNum) throws IOException, ParseException, InterruptedException {
+        //List<Tree> gts = new ArrayList<Tree>();
+        String[] gts = new String[lociNum];
+        for (int i = 0; i < lociNum; i++) {
+            String tree = _RAxMLdir + "/RAxML_Init/RAxML_bestTree.T" + i;
+            String llFile = _RAxMLdir + "/RAxML_Init/RAxML_info.T" + i;
+            BufferedReader gtReader = new BufferedReader(new FileReader(tree));
+            String gtString = gtReader.readLine().trim();
+            gtReader.close();
+            BufferedReader llReader = new BufferedReader(new FileReader(llFile));
+            double ll = 0.0;
+            String llString = "";
+            while(llString!=null){
+                llString = llReader.readLine();
+                if(llString.length()<20||llString.isEmpty())
+                    continue;
+                if(llString.substring(0,5).equals("Final")){
+                    String[] result = llString.split(" ");
+                    ll = Double.valueOf(result[6]);
+                    break;
+                }
+            }
+            gts[i] = gtString + " " + ll;
+            llReader.close();
+        }
+        return gts;
+    }
+
+
+        //operator.getUpdateSh(lociNum, msSize);
     public void getUpdateSh(int lociNum, int msSize) throws IOException, ParseException, InterruptedException {
         //writeSeq + partition     rm + raxml    read in
         List<Tree> gts = new ArrayList<Tree>();
@@ -1209,13 +1254,13 @@ public class InferOperator {
         return flag;
     }
 
-    //
-    public static List<Tree> scaleGTList(boolean multiply, List<Tree> uList, double ratio) {
+    //scale mtDNA
+    public static List<Tree> scaleGTList(boolean multiply, List<Tree> tList, double ratio) {
         List<Tree> newGTS = new ArrayList<Tree>();
-        for (int i = 0; i < uList.size(); i++) {
-            newGTS.add(scaleGT(uList.get(i), ratio, multiply));
+        for (int i = 0; i < tList.size(); i++) {
+            newGTS.add(scaleGT(tList.get(i), ratio, multiply));
         }
-        return uList;
+        return tList;
     }
 
     public List<String> getMSTopos(List<Tree> msGTS, List<String> checkedTopo){
@@ -1327,7 +1372,7 @@ public class InferOperator {
     //Output: rooted tree and outgroup is the first-level child
     public static Tree rerootRAxML(Tree t, String outgroup) {
         Trees.autoLabelNodes((MutableTree) t);
-        TNode og = t.getNode("O");
+        TNode og = t.getNode(outgroup);
         double oHeight = og.getParentDistance();
         String tempP = og.getParent().getName();
         TNode oldRoot = t.getRoot();
@@ -1339,8 +1384,8 @@ public class InferOperator {
         BniNetNode oldP = (BniNetNode)tempNet.findNode(tempP);
 
         oldP.adoptChild(newRoot,oHeight/100);
-        newRoot.adoptChild((BniNetNode)tempNet.findNode("O"),oHeight);
-        oldP.removeChild((BniNetNode)tempNet.findNode("O"));
+        newRoot.adoptChild((BniNetNode)tempNet.findNode(outgroup),oHeight);
+        oldP.removeChild((BniNetNode)tempNet.findNode(outgroup));
 
         BniNetNode oldNetRoot = (BniNetNode)tempNet.getRoot();
         BniNetNode tempChild = newRoot;
