@@ -68,6 +68,8 @@ public class ASTImprovement {
     private List<String> GLOBALBESTGTS;
 
     private static List<Alignment> trueSeq;
+    private static List<Alignment> true16Seq;
+
     private double GLOBALBESTLL;
     private IIGTSimulator simulator;
     private InferOperator operator;
@@ -109,9 +111,10 @@ public class ASTImprovement {
     private long[] time;
     private static String STRATEGY; //RANDOM IMPROVE NONE
     private boolean ifOutGroup;
+    private int stIndex; //index of true gt from /Users/doriswang/PhyloNet/Data/17-taxon/
 
     //All parameters should be initialed here
-    ASTImprovement() throws IOException, InterruptedException, ParseException {
+    ASTImprovement(int index) throws IOException, InterruptedException, ParseException {
 
         //TEST = true;
 
@@ -141,7 +144,7 @@ public class ASTImprovement {
         _scales = new double[]{1.0};
         _seqLens = new int[]{1000};
         taxaNum = 16;
-        ll_Ratio = 1.8; // P(seq|GT): p(GT|ST)
+        ll_Ratio = 1.0; // P(seq|GT): p(GT|ST)
         gtsLL = new double[ITERATION];// LL(Seq|GTS)*(GTS|ST)
         // LL(Seq|GTS)*(GTS|ST) for pseudo version || not used for classic version
         gtsHLL = new double[ITERATION];
@@ -160,6 +163,7 @@ public class ASTImprovement {
         msDist_Locus = new double[ITERATION][lociNum];
         time = new long[2];
         bestLLIter = 0;
+        stIndex = index;
         bestITNum = new ArrayList<Integer>();
         bestSTLL = new ArrayList<Double>();
         bestSTD = new ArrayList<Double>();
@@ -174,6 +178,11 @@ public class ASTImprovement {
         if (ISREALDATA) {
             if (DATASET.equals(("17"))) {
                 trueST = operator.load17Data("/Users/doriswang/PhyloNet/Data/17-taxon/004/ST0/1/", _seqLens[0], lociNum, trueSeq, trueGTS);
+                true16Seq = trueSeq;
+                //true16Seq.remove()
+            }
+            if (DATASET.equals(("RANDOM"))) {
+                //trueST = operator.loadRandomData(stIndex, _seqLens[0], lociNum, trueSeq, trueGTS);
             }
         } else {
             List<String> trees = simulator.simulateData();
@@ -185,6 +194,17 @@ public class ASTImprovement {
             }
         }
     }
+
+    public static void main(String[] args) throws IOException, ParseException, InterruptedException {
+
+        ASTImprovement ast = new ASTImprovement(0);
+        InferOperator operator = new InferOperator(ITERATION);
+        IIGTSimulator simulator1 = new IIGTSimulator(10, _scales, _seqLens, 0.04, 100);
+        //ast.initST(trueSeq);
+        ast.iigt(trueSeq,ITERATION);
+        System.out.println("Finish");
+    }
+
 
     //  Input: alignments & t
     //  Output: GTs and STs
@@ -812,16 +832,6 @@ public class ASTImprovement {
         return INIT_ST;
     }
 
-
-    public static void main(String[] args) throws IOException, ParseException, InterruptedException {
-
-        ASTImprovement ast = new ASTImprovement();
-        InferOperator operator = new InferOperator(ITERATION);
-        IIGTSimulator simulator1 = new IIGTSimulator(20, _scales, _seqLens, 0.04, 100);
-        //ast.initST(trueSeq);
-        ast.iigt(trueSeq,ITERATION);
-        System.out.println("Finish");
-    }
 
     //input: rooted gts with OG
     //output: rooted ST without OG

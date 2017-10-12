@@ -2,6 +2,7 @@ package edu.rice.cs.bioinfo.programs.phylonet.algos.iterHeuristic;
 
 /**
  * Created by doriswang on 6/26/17.
+ * For Snack data
  */
 
 

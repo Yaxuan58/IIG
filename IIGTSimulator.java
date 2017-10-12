@@ -27,23 +27,6 @@ import java.util.Map;
 /**
  * Created by doriswang on 3/12/17.
  */
-class ValueComparator implements Comparator<String> {
-    Map<String, Double> base;
-
-    public ValueComparator(Map<String, Double> base) {
-        this.base = base;
-    }
-
-    // Note: this comparator imposes orderings that are inconsistent with
-    // equals.
-    public int compare(String a, String b) {
-        if (base.get(a) >= base.get(b)) {
-            return 1;
-        } else {
-            return -1;
-        } // returning 0 would merge keys
-    }
-}
 
 public class IIGTSimulator {
     //TODO: change path
@@ -72,12 +55,12 @@ public class IIGTSimulator {
     }
 
     public static void main(String[] args) throws IOException{
-        _seqLens = new int[] {1000};
+        _seqLens = new int[] {2000};
         IIGTSimulator simulator1 = new IIGTSimulator(100, _scales, _seqLens, 0.04, 10);
-        //simulator1.tempSimulateData();
+        simulator1.tempSimulateData();
 
         RawDataProcessor r = new RawDataProcessor();
-        r.compare();
+        //r.compare();
 
 //        Tree t = Trees.readTree("(1:0.03798,(((((2:0.004797,9:0.003204,3:0.000806,4:0.000772,5:0.000810,6:0.000787,7:0.000786,10:0.000798):0.001607,8:0.002159):0.037802,(((11:0.000817,13:0.000808,14:0.000809):0.003299,(12:0.000806,15:0.000804,16:0.000819,17:0.000806):0.002343):0.002431,(18:0.000788,19:0.000807):0.001933):0.029201):0.032477,((20:0.000816,(21:0.000801,22:0.000811,23:0.000801):0.004790,24:0.000806):0.001593,25:0.001260):0.049365):0.076642):0.031080);");
 //        TNode n = t.getRoot();
@@ -90,10 +73,75 @@ public class IIGTSimulator {
 
     }
 
+    //Input: gts, seqLen, halfTheta, seqPath
+    //Output: seq files
+    public static List<Tree> simulateSeqByGTS(List<String> trueGTs, int seqLen, double halftheta, String seqPath) throws IOException{
+        List<Tree> gTrees = new ArrayList<Tree>();
+//        Network trueST = Networks.readNetwork("(O:4000000.0,((5:510651.46867173124,((((16:17196.773450964265,13:17196.773450964265):36888.57223635702,4:54085.34568732128):46876.20987562239,((1:2587.572071098354,2:2587.572071098354):84853.72012373093,8:87441.29219482928):13520.263368114394):279321.3380855043,10:380282.8936484479):130368.57502328334):289348.53132826864,((((9:175912.93589064968,(3:91320.51294043698,(15:11979.080346369532,7:11979.080346369532):79341.43259406745):84592.42295021267):60550.86479658761,14:236463.80068723724):59989.43798440966,6:296453.2386716468):127811.77620787111,(11:145574.61165799387,12:145574.61165799387):278690.40322152415):375734.98512048187):3200000.0);");
+//        Iterator itNode = trueST.getTreeNodes().iterator();
+//        while (itNode.hasNext()) {
+//            NetNode n = (NetNode) itNode.next();
+//            if (n == (NetNode) trueST.getRoot())
+//                continue;
+//
+//            NetNode p = (NetNode) n.getParents().iterator().next();
+//            //double ratio = currentHeight - heightN;
+//            if (n.getParentDistance(p) != TMutableNode.NO_DISTANCE) {
+//                n.setParentDistance(p, n.getParentDistance(p) / 40000); // Coalescent_Unit = Tao /  theta/2
+//            }
+//        }
+//        trees.add(trueST.toString());
+//        //String folder = "" + iteration;
+//        String seqDir = "/Users/doriswang/PhyloNet/Data/17-taxon/004/ST3/1/Seq/";
+        String treeDir = seqPath + "gtree/";
+
+        BufferedWriter bw = new BufferedWriter(new FileWriter(seqPath + "trueGTS.txt"));
+        for (int tid = 0; tid < trueGTs.size(); tid++) {
+            String gt = trueGTs.get(tid);
+            gTrees.add(Trees.readTree(gt));
+            bw.write(gt + "\n");
+            try {
+                String fileName = treeDir + "TrueGT_" + tid + ".tree";
+                BufferedWriter out = new BufferedWriter(new FileWriter(fileName));
+                out.write(gt + "\n");
+                out.close();
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+
+            String command = seqGenePath + " -mHKY -s" + halfTheta + " -l "
+                    + seqLen + " -on < " + treeDir + "TrueGT_" + tid + ".tree > "
+                    + seqPath + "seq_" + tid + "_" + seqLen + ".nex";
+            //SEQ_DIR + "/" + iteration + "/seq_" + seqNum + "_" + seqLength +".nex";
+            try {
+                String fileName = seqPath + "seqgen_" + tid + "_" + seqLen + ".sh";
+                BufferedWriter out = new BufferedWriter(new FileWriter(fileName));
+                out.write(command + "\n");
+                out.close();
+                ProcessBuilder pb = new ProcessBuilder("/bin/bash", fileName);
+                pb.redirectErrorStream(true);
+                try {
+                    Process proc = pb.start();
+                    try {
+                        proc.waitFor();
+                    } catch (InterruptedException ex) {
+                        System.out.println(ex.getMessage());
+                    }
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+        bw.close();
+        return gTrees;
+    }
+
 
     public static List<String> tempSimulateData() throws IOException{
         List<String> trees = new ArrayList<String>();
-                Network trueST = Networks.readNetwork("(O:4000000.0,((5:510651.46867173124,((((16:17196.773450964265,13:17196.773450964265):36888.57223635702,4:54085.34568732128):46876.20987562239,((1:2587.572071098354,2:2587.572071098354):84853.72012373093,8:87441.29219482928):13520.263368114394):279321.3380855043,10:380282.8936484479):130368.57502328334):289348.53132826864,((((9:175912.93589064968,(3:91320.51294043698,(15:11979.080346369532,7:11979.080346369532):79341.43259406745):84592.42295021267):60550.86479658761,14:236463.80068723724):59989.43798440966,6:296453.2386716468):127811.77620787111,(11:145574.61165799387,12:145574.61165799387):278690.40322152415):375734.98512048187):3200000.0);");
+                Network trueST = Networks.readNetwork("(O:4000000.0000000005,((7:320410.56025586306,(5:171859.33416363757,2:171859.33416363757):148551.22609222552):479589.4397441369,((((15:1286.8750574758267,1:1286.8750574758267):193151.5628134453,(6:190005.17240669002,(10:31789.288803547137,3:31789.288803547137):158215.88360314287):4433.265464231158):70363.8723491511,(((8:47699.30894420634,12:47699.30894420634):19910.799516858293,11:67610.10846106464):18959.454862388262,(4:44421.322659187055,16:44421.322659187055):42148.240664265846):178232.74689661936):478658.742741006,((9:104854.84644501805,14:104854.84644501805):36171.64602825128,13:141026.4924732693):602434.560487809):56538.947038921746):3200000.0000000005);");
                 Iterator itNode = trueST.getTreeNodes().iterator();
                 while (itNode.hasNext()) {
                     NetNode n = (NetNode) itNode.next();
@@ -108,8 +156,8 @@ public class IIGTSimulator {
                 }
                 trees.add(trueST.toString());
                 //String folder = "" + iteration;
-                String seqDir = "/Users/doriswang/PhyloNet/Data/17-taxon/004/ST3/1/Seq/";
-                String treeDir = "/Users/doriswang/PhyloNet/Data/17-taxon/004/ST3/1/Tree/";
+                String seqDir = "/Users/doriswang/PhyloNet/Data/17-taxon/004/ST0/3/Seq/";
+                String treeDir = "/Users/doriswang/PhyloNet/Data/17-taxon/004/ST0/3/Tree/";
 
                 BufferedWriter bw = new BufferedWriter(new FileWriter(treeDir + "trueST.txt"));
                 bw.write(trueST.toString() + "\n");

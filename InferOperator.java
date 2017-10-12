@@ -65,9 +65,12 @@ public class InferOperator {
     public static void main(String[] args) throws  IOException, InterruptedException, ParseException{
 
         InferOperator ifo = new InferOperator(1000);
-        RawDataProcessor r = new RawDataProcessor();
-        String t = r.addTaxonName("(((19:0.00100000050002909,20:0.00100000050002909)I16:1.152946639631439,(16:0.4096753842384416,(18:0.00100000050002909,17:0.00100000050002909)I15:0.4086753837384125)I14:0.15927194422111118)I13:0.845163387858571,(((9:0.4456858217614752,(11:0.00100000050002909,10:0.00100000050002909)I11:0.4446858212614461)I10:0.2592441371312471,((15:0.00100000050002909,12:0.00100000050002909)I9:0.025201791973950474,(14:0.00100000050002909,13:0.00100000050002909)I8:0.12644601676689493)I7:0.07312226482896261)I6:0.4433325706515572,(3:0.2118922703896251,(2:0.20397143689818112,((1:0.00100000050002909,8:0.00100000050002909)I2:0.04122271582395445,((4:0.00100000050002909,5:0.00100000050002909)I17:0.08989500411654797,(6:0.00100000050002909,7:0.00100000050002909)I18:0.1380665477899139)I0:0.0)I1:0.06490488860823812)I3:0.007920833491443997)I4:1.0803345097601746)I5:0.3048617690139027)I12;");
-        System.out.println(t);
+        double[] ll = new double[50];
+        String[] trees = new String[50];
+        ifo.getInitTree(trees, ll, 50);
+        //RawDataProcessor r = new RawDataProcessor();
+        //String t = r.addTaxonName("(((19:0.00100000050002909,20:0.00100000050002909)I16:1.152946639631439,(16:0.4096753842384416,(18:0.00100000050002909,17:0.00100000050002909)I15:0.4086753837384125)I14:0.15927194422111118)I13:0.845163387858571,(((9:0.4456858217614752,(11:0.00100000050002909,10:0.00100000050002909)I11:0.4446858212614461)I10:0.2592441371312471,((15:0.00100000050002909,12:0.00100000050002909)I9:0.025201791973950474,(14:0.00100000050002909,13:0.00100000050002909)I8:0.12644601676689493)I7:0.07312226482896261)I6:0.4433325706515572,(3:0.2118922703896251,(2:0.20397143689818112,((1:0.00100000050002909,8:0.00100000050002909)I2:0.04122271582395445,((4:0.00100000050002909,5:0.00100000050002909)I17:0.08989500411654797,(6:0.00100000050002909,7:0.00100000050002909)I18:0.1380665477899139)I0:0.0)I1:0.06490488860823812)I3:0.007920833491443997)I4:1.0803345097601746)I5:0.3048617690139027)I12;");
+        //System.out.println(t);
         //r.doubleMap();
 //        String[] gts = ifo.getRAxMLStartT(38);
 //        System.out.println(gts[37]);
@@ -465,6 +468,68 @@ public class InferOperator {
     }
 
 
+//    //TODO: input: gtIndex: gtNum
+//    public String loadRandomData (int stIndex, int seqlens, int lociNum, List<Alignment> trueSeq, List<String> trueGTS) throws IOException, ParseException, InterruptedException {
+//        //#lociNum = 32
+//        String streeFile = "/Users/doriswang/PhyloNet/Data/17-taxon/st/Rep" + stIndex +  "stree.txt";
+//        BufferedReader stReader = new BufferedReader(new FileReader(streeFile));
+//        String trueST = (String) stReader.readLine().trim();
+//        String gtFile = "/Users/doriswang/PhyloNet/Data/17-taxon/32loci/Rep" + stIndex +  "gtrees.txt";
+//        BufferedReader gtReader = new BufferedReader(new FileReader(streeFile));
+//
+//        for (int ln = 0; ln < lociNum ; ln++) {
+//            String tree = stReader.readLine().trim();
+//            trueGTS.add(tree);
+//        }
+//        stReader.close();
+//
+//        for (int ln = 0; ln < lociNum ; ln++) {
+//            int tempLN = ln ;
+//            BufferedReader sReader = new BufferedReader(new FileReader(seqPath + "seq_" + tempLN + "_2000.nex"));
+//            int j = 0;
+//            while (j < 20) {
+//                sReader.readLine();
+//                j++;
+//            }
+//            String[] taxaName = new String[17];
+//            String seqs = "";
+//            String line = "";
+//            Map<String, String> locus = new HashMap<String, String>();
+//            for (int i = 0; i < 17; i++) {
+//                line = sReader.readLine().trim();
+//                String[] temp = line.split(" ");
+//                taxaName[i] = temp[0];
+//                if (temp[1].equals(""))
+//                    seqs = temp[2];
+//                else
+//                    seqs = temp[1];
+//                locus.put(taxaName[i], seqs.substring(0, seqlens));
+//            }
+//            //locus.remove("O");
+//            trueSeq.add(new Alignment(locus));
+//            sReader.close();
+//        }
+//        int taxaNum = 17;
+//        int seqLen = 1000;
+//        for(int i = 0; i<lociNum; i++){
+//            BufferedWriter phy = new BufferedWriter(new FileWriter(_RAxMLdir + i + "/dna.phy"));
+//            phy.write( taxaNum + " " + seqLen + '\n');
+//            phy.flush();
+//            Alignment a = trueSeq.get(i);
+//            List<String> names = a.getTaxaNames();
+//            Map<String, String> thisAln = a.getAlignment();
+//            for (int j = 0; j < taxaNum; j++) {
+//                String name = names.get(j);
+//                String seq = thisAln.get(name);
+//                phy.write(name + '\t' + seq + '\n');
+//            }
+//            phy.flush();
+//            phy.close();
+//        }
+//        get16Aln(trueSeq, seqlens, 16,lociNum);
+//        return trueST;
+//    }
+
     //String seqFileName = "/Users/doriswang/PhyloNet/Data/17-taxon/32loci/Rep467gtrees";
 ////t = 16 + 1 l = 32 length = 2000
     //TODO 7.18 : only fit for 17 taxon now!! need to be extened
@@ -485,6 +550,7 @@ public class InferOperator {
         stReader.close();
         for (int ln = 0; ln < lociNum ; ln++) {
             int tempLN = ln ;
+            //TODO different file name
             BufferedReader sReader = new BufferedReader(new FileReader(seqPath + "seq_" + tempLN + "_2000.nex"));
             int j = 0;
             while (j < 20) {
@@ -510,7 +576,7 @@ public class InferOperator {
             sReader.close();
         }
         int taxaNum = 17;
-        int seqLen = 1000;
+        int seqLen = seqlens;
         for(int i = 0; i<lociNum; i++){
             BufferedWriter phy = new BufferedWriter(new FileWriter(_RAxMLdir + i + "/dna.phy"));
             phy.write( taxaNum + " " + seqLen + '\n');
@@ -1193,6 +1259,32 @@ public class InferOperator {
             double tempLL = Double.valueOf(llString[1]);
             ll[j] = tempLL;
             llReader.close();
+        }
+        return ll;
+    }
+
+    //Input: trees[], ll[] ,lociNum
+    //Output: double[] ll, trees[]
+    public double[] getInitTree(String[] trees, double[] ll, int lociNum) throws IOException {
+
+        for(int j = 0; j<lociNum; j++){
+            String tFile = _RAxMLdir + "initTrees/" + "RAxML_bestTree.T" + String.valueOf(j);
+            BufferedReader tReader = new BufferedReader(new FileReader(tFile));
+            trees[j] = tReader.readLine().trim();
+            tReader.close();
+            String llFile = _RAxMLdir + "initTrees/" + "RAxML_info.T" + String.valueOf(j);
+            BufferedReader llReader = new BufferedReader(new FileReader(llFile));
+            while(true){
+                String temp = llReader.readLine().trim();
+                if(temp.startsWith("Final")){
+                    String temps[] = temp.split(" ");
+                    temp = temps[temps.length-1];
+                    ll[j] = Double.valueOf(temp);
+                    break;
+                }
+            }
+            llReader.close();
+            //System.out.println(trees[j] + "  " + ll[j]);
         }
         return ll;
     }
