@@ -129,19 +129,19 @@ public class RMSImprovement {
         GLOBALBESTGTS = new ArrayList<String>();
         trueSeq = new ArrayList<Alignment>();
         //TODO: PARA
-        ITERATION = 50; //{1k, 5k ,10k}
-        ISREALDATA = true;
+        ITERATION = 30; //{1k, 5k ,10k}
+        ISREALDATA = false;
         FULL_LL = true;
         DATASET = "17";
-        halfTheta = 0.04;//need to init in ALL classes ||  theta -> POP_SIZE
+        halfTheta = 0.0005;//need to init in ALL classes ||  theta -> POP_SIZE
         lociNum = 10;
         ifOutGroup = false;
 
-        ogHeight = new double[2]; // og height from all initGT[min, max]
-        refineGTSize = 10;
+        ogHeight = new double[3]; // og height from all initGT[min, max]
+        refineGTSize = 20;
         _scales = new double[]{1.0};
-        _seqLens = new int[]{100};
-        taxaNum = 16;
+        _seqLens = new int[]{200};
+        taxaNum = 17;
         ll_Ratio = 1.0; // P(seq|GT): p(GT|ST)
         gtsLL = new double[ITERATION];// LL(Seq|GTS)*(GTS|ST)
         // LL(Seq|GTS)*(GTS|ST) for pseudo version || not used for classic version
@@ -166,7 +166,7 @@ public class RMSImprovement {
         bestSTD = new ArrayList<Double>();
         //checkedTopo = new ArrayList<String>();  //topos as checked order
         //optGTSList = new ArrayList<List<Tree>>() ;
-        STRATEGY = "IMPROVE"; //RANDOM IMPROVE N
+        STRATEGY = "RANDOM"; //RANDOM IMPROVE N
         //TODO Simulation
         simulator = new IIGTSimulator(lociNum, _scales, _seqLens, halfTheta, ITERATION);
         operator = new InferOperator(ITERATION);
@@ -174,13 +174,14 @@ public class RMSImprovement {
         operator.isExitsPath(resultFolder);
         if (ISREALDATA) {
             if (DATASET.equals(("17"))) {
-                trueST = operator.load17Data("/Users/doriswang/PhyloNet/Data/17-taxon/004/ST0/target/", _seqLens[0], lociNum, trueSeq, trueGTS);
+                trueST = operator.load17Data("/Users/doriswang/PhyloNet/Data/IIG/symmetrical/200/", _seqLens[0], lociNum, trueSeq, trueGTS);
             }
         } else {
-            List<String> trees = simulator.simulateData();
-            trueST = trees.get(0);
-            trueGTS = trees.subList(1, trees.size());
+            List<String> trees = simulator.loadTrees("/Users/doriswang/PhyloNet/Data/IIG/symmetrical/200/", lociNum);
+            trueST = operator.removeOutgroup(trees.get(0));
+            //trueGTS = trees.subList(1, trees.size());
             for (int i = 0; i < lociNum; i++) {
+                trueGTS.add(operator.removeOutgroup(trees.get(i+1)));
                 Alignment aln = operator.loadLocus(i, _seqLens[0], taxaNum);
                 trueSeq.add(aln);
             }
@@ -390,17 +391,13 @@ public class RMSImprovement {
             Trees.autoLabelNodes(tempT);
             ogTopos.add(tempT);
         }
-
-        List<Tree> gts = getBestGTSByR(ogTopos);
+        //TODO: involve p(gt|st)
+        List<Tree> gtsOG = getBestGTSByR(ogTopos,tempST);
         boolean move = false;
         //double p2 = currentLL - currentHLL;
         currentITLL[itNum] = currentLL;
-        iter_LL = currentLL;
-        List<Tree> gtsOG = new ArrayList<Tree>();
-        for(int i = 0; i<gts.size(); i++){
-            gtsOG.add(operator.rerootRAxML(gts.get(i),"O"));
-        }
-        gts = operator.getNoOGGTS(gtsOG);
+        iter_LL = currentHLL;
+        List<Tree> gts = operator.getNoOGGTS(gtsOG);
         Tree inferredST = operator.inferSTByGLASS(gts);
         if(inferredST.getNode("1").getParentDistance()!=Double.NEGATIVE_INFINITY)
             gts.add(inferredST);
@@ -466,7 +463,10 @@ public class RMSImprovement {
         }
 //        if(itNum==1)
 //            move = true;
-
+//        if(move == false) {
+//            move = true;
+//            System.out.println("Not move but move");
+//        }
         if (move == true) {
 //            List<Tree> gtsOG = new ArrayList<Tree>();
 //            for(int i = 0; i<gts.size(); i++){
@@ -497,12 +497,12 @@ public class RMSImprovement {
             }
             gtDis[itNum] = thisD / lociNum;
             System.out.println("GTS Distance of # " + itNum + " is : " + gtDis[itNum]);
-            System.out.println("**********Accept ST  : " + tempST.toString());
+            System.out.println("**********Accept ST  ");
             gtsLL[itNum] = currentLL;
             gtsHLL[itNum] = currentHLL;
 
         } else {
-            System.out.println("----------Reject ST  : " + tempST.toString());
+            System.out.println("----------Reject ST  ");
             gtsLL[itNum] = gtsLL[itNum - 1];
             gtsHLL[itNum] = gtsHLL[itNum - 1];
             //currentITLL[itNum] = currentITLL[itNum-1];
@@ -524,7 +524,7 @@ public class RMSImprovement {
 
     //Input: topos, ST
     //Output: best p(seq|G) RAxML trees(17)
-    public List<Tree> getBestGTSByR(List<Tree> topos) throws IOException {
+    public List<Tree> getBestGTSByR(List<Tree> topos, Network < NetNodeInfo > tempST) throws IOException {
         //double[][] ll = new double[lociNum][refineGTSize];
         currentHLL = 0.0;
         currentLL = 0.0;
@@ -536,6 +536,7 @@ public class RMSImprovement {
         operator.runUpdateShell(refineGTSize,lociNum);
         for(int i = 0 ; i<lociNum; i++){
             double[] llList = operator.getLocusLL(i, refineGTSize);
+
             double bestLL = llList[0];
             int bestGTNumi = 0;
             for(int j = 0; j < llList.length; j++) {
@@ -546,11 +547,43 @@ public class RMSImprovement {
             }
             bestGTs.add(operator.scaleGT(operator.getbestGTi(i,bestGTNumi),halfTheta,false));
             bestGTLL.add(bestLL);
+            //TODO: get P(gt_j|st)
             currentHLL += bestLL;
             bestGTNum.add(bestGTNumi);
         }
+
         currentLL = currentHLL;
-        return bestGTs;
+        List<Tree> gts = new ArrayList<Tree>();
+        for(int i = 0; i<bestGTs.size(); i++){
+
+            gts.add(operator.rerootRAxML(bestGTs.get(i),"O"));
+        }
+        Network st = Networks.readNetwork(operator.removeOutgroup(tempST.toString()));
+
+        List<Double> gtsllList = getLocusGTLL(gts, st);
+        for(int i = 0; i<gtsllList.size(); i++){
+            currentLL += gtsllList.get(i);
+        }
+        //currentLL = currentHLL;
+        System.out.println(currentLL + "  dddd "  + currentHLL);
+        return gts;
+    }
+
+    //Input: #locus, refineSize
+    //Output: double[] ll List for Locus_i
+    public List<Double>  getLocusGTLL(List<Tree> bestGTs , Network < NetNodeInfo > tempST) throws IOException {
+        //double[] ll = new double[bestGTs.size()];
+        tempST = operator.getUTree(tempST,ogHeight);
+        List<Tree> gtList  = new ArrayList<Tree>();
+        //String outputFile = _RAxMLdir + "RAxML_result.TEST" + i;
+        for(int j = 0; j<bestGTs.size(); j++){
+            Tree gt = Trees.readTree(operator.removeOutgroup(bestGTs.get(j).toString()));
+            if(gt.getNode("O")!=null)
+                System.out.println("WRONG REMOVE");
+            gtList.add(operator.cleanName(operator.getUTree(gt,ogHeight[2])));
+        }
+
+        return getGTSLLBySTYF(gtList, tempST);
     }
 
     //Run updateShell
@@ -753,6 +786,7 @@ public class RMSImprovement {
 
 
     // P(gt|ST)
+    //if not return -> add st height on all leaves
     public List<Double> getGTSLLBySTYF(List<Tree> geneTrees, Network<NetNodeInfo> currentST) {
         List<Double> gProST = new ArrayList<>();
         double[] result = new double[geneTrees.size()];
@@ -773,58 +807,42 @@ public class RMSImprovement {
         operator.getUpdateSh(lociNum,refineGTSize);
         String trees[]  = new String[lociNum];
         operator.getInitTree(trees,currentHGTLL,lociNum);
-//        trees[0] =   "((14:0.31454687558361765776,((11:0.82162907848227140217,((2:0.21213617549968616371,(16:0.30874285527661915474,((O:2.16411663107923901705,5:0.00000100000050002909):0.13874749053706425528,7:0.12885641700209179983):0.04195215978636428200):0.03411192681770849194):0.09278690547910842246,(3:0.22773223241529208516,6:0.30382416641750692454):0.07121799895552061166):0.35993880396171901159):0.08436391279748052530,(10:0.29851327797909604778,((15:0.00699489578969816547,4:0.06878866163236331543):0.33242741866731395639,(8:0.04887987074296101103,(9:0.03934661035708268001,13:0.04565461459482478279):0.08552364758851636883):0.45532498856880831983):0.00000100000050002909):0.17969136349875336478):0.59944534893008827314):0.24999567242322306981,12:0.03760239523541118040,1:0.07470738375690583188):0.0;";
-//
-//        trees[1] =   "((12:0.12361676407710606163,(14:0.29854530790212269187,((11:0.70938783310738995347,(((16:0.20645685045080108821,(5:0.13111548320096755305,7:0.17786592620698446487):0.00000100000050002909):0.07596884052369075324,2:0.20586633980357621487):0.14488100386942084907,(6:0.22423614542996603283,3:0.33721160283012019399):0.09701882625037898389):0.31820826582494021739):0.19774848302319938953,(((15:0.05762723365359608690,4:0.00074397265823729136):0.21324453981056140650,10:0.24621417618781268888):0.20663788097302315805,(13:0.08853253815379567848,(8:0.24517296895700735337,9:0.11617089707114475194):0.00000100000050002909):0.40894511663032284687):0.41499072876581122316):0.23564586140236823408):0.28106915068299026528):0.01726442928107360664,O:2.51982782053959697421,1:0.00000100000050002909):0.0;";
-//
-//        trees[2] =   "(12:0.03278005088839869990,(14:0.56737459827483061048,(((3:0.22051508120226792631,6:0.32129173640134967016):0.10903118867408249926,((5:0.13996411818317891496,2:0.20949137493772729268):0.00680053087299913647,((16:0.07244104052657238113,((4:0.00000100000050002909,((10:0.40390219007271621621,(8:0.19492289773445739542,(13:0.06454070299038436320,9:0.05813845245107625292):0.08171098632263308625):0.64243101253526402328):0.07186234979492760189,15:0.03280472417950854036):0.01735731827216619935):0.99536400745019348868,O:1.17260912979677045520):0.48413008261810425159):0.20073138324380040975,7:0.17548509026967323843):0.05241231586506980844):0.07169381210951179806):0.42557212810089967148,11:0.78076711287401467931):0.21843936659289639457):0.43096273635074672237,1:0.00000100000050002909):0.0;";
-//
-//        trees[3] =    "(12:0.07814750913925462561,((((5:0.16393185638542814853,7:0.03540103824276032152):0.03875617974159424606,(((3:0.22740762980132450677,(O:3.12440103417684422737,6:0.00000100000050002909):0.24786085687006303990):0.17561568650961789650,(2:0.33118869684101687190,(10:0.04880558224466812617,((8:0.12811012465658619397,(9:0.09375474204761735653,13:0.03973135677494383372):0.08301802436893147841):0.47293492355626487456,(15:0.01705673241012171937,4:0.00741223453972161047):0.35290420064787214605):0.11394742041365805985):0.91955199824683342413):0.07618627936147999435):0.05010344146790666336,16:0.18675129130803563848):0.07540706174066456879):0.53068226649278515961,11:0.51109908338171028408):0.64659831110358112483,14:0.40657406969982035072):0.08188759754407447244,1:0.11590857187240341530):0.0;";
-//
-//        trees[4] =     "(((((O:1.38030592103746774235,((13:0.08870225792257502295,9:0.00518159941941468121):0.12675828544424624922,(8:0.17531367331599245762,(10:0.23463216458118990593,(4:0.04937977013478178634,15:0.00000100000050002909):0.20563657022660561391):0.19595329891032559066):0.09038860662259842749):0.09851505682910878525):0.37158746182814145209,((3:0.16588857651932034654,6:0.21607177341980249308):0.20386934608258866497,(16:0.24647979224018115585,(7:0.19865653832417351499,(2:0.29719239637448841007,5:0.21615008749966160839):0.02517531026384588200):0.06841706892048518562):0.02771452273417894518):0.38527135347237578822):0.26530444357339766359,11:0.59086736757480096127):0.54834626123268814801,14:0.44900367142044822488):0.15546876828543279569,12:0.06553336791484647150,1:0.03785019458015550370):0.0;";
 
-//        currentHGTLL[0] = -2042.893488;
-//        currentHGTLL[1] = -2090.553245;
-//        currentHGTLL[2] = -2083.194595;
-//        currentHGTLL[3] = -2057.147040;
-//        currentHGTLL[4] = -2048.066367;
-
-//        currentHGTLL[0] = -2084.536682;
-//        currentHGTLL[1] = -2042.893488;
-//        currentHGTLL[2] = -2090.553245;
-//        currentHGTLL[3] = -2158.541632;
-//        currentHGTLL[4] = -2035.803485;
-//        currentHGTLL[5] = -2132.027419;
-//        currentHGTLL[6] = -2083.194595;
-//        currentHGTLL[7] = -2061.227966;
-//        currentHGTLL[8] = -2057.147040;
-//        currentHGTLL[9] = -2048.066367;
-
-        List tempGTs = new ArrayList<Tree>();
+        List<Tree> tempGTs = new ArrayList<Tree>();
         double ogMin = Double.POSITIVE_INFINITY;
         double ogMax = 0.0;
-        for(int i=0;i<lociNum;i++){
-            Tree tempT = Trees.readTree(trees[i]);
-            tempT = operator.rerootRAxML(tempT,"O");
-            //Tree tempT = tempOGTs.get(i);
-            operator.scaleGT(tempT,halfTheta,false);
-            tempGTs.add(tempT);
-            String temp = operator.rerootAndRemove(tempT.toString(),"O");
-            finalGTS.add(Trees.readTree(temp));
+//        if(ISREALDATA == true){
+            for (int i = 0; i < lociNum; i++) {
+                Tree tempT = Trees.readTree(trees[i]);
+                tempT = operator.rerootRAxML(tempT, "O");
+                //Tree tempT = tempOGTs.get(i);
+                operator.scaleGT(tempT, halfTheta, false);
+                tempGTs.add(tempT);
+                String temp = operator.rerootAndRemove(tempT.toString(), "O");
+                finalGTS.add(Trees.readTree(temp));
 
-            GLOBALBESTGTS.add(temp);
-            double ogH = tempT.getNode("O").getParentDistance();
-            if(ogH>ogMax)
-                ogMax = ogH;
-            if(ogH<ogMin)
-                ogMin = ogH;
-        }
-        ogHeight[0] = ogMin;
-        ogHeight[1] = ogMax;
-        //operator.scaleGTList(false, tempGTs, halfTheta);
+                GLOBALBESTGTS.add(temp);
+                double ogH = tempT.getNode("O").getParentDistance();
+                if (ogH > ogMax)
+                    ogMax = ogH;
+                if (ogH < ogMin)
+                    ogMin = ogH;
+            }
+            ogHeight[0] = ogMin;
+            ogHeight[1] = ogMax;
+//        }
+//        else{
+//            for (int i = 0; i < lociNum; i++) {
+//                Tree tempT = Trees.readTree(trees[i]);
+//                operator.scaleGT(tempT, halfTheta, false);
+//                tempGTs.add(tempT);
+//                finalGTS.add(tempT);
+//                GLOBALBESTGTS.add(tempT.toString());
+//            }
+//            ogHeight[0] = 100/halfTheta;
+//            ogHeight[1] = 100/halfTheta;
+//        }
         INIT_ST = inferSTByAST(tempGTs);
-        //optimizeBL(tempGTs,INIT_ST,ogHeight[0]);
-        //List<Double> proGT = getGTSLLBySTYF(finalGTS, INIT_ST);
         currentHLL = 0.0;
         currentLL = 0.0;
 
@@ -833,24 +851,34 @@ public class RMSImprovement {
             currentGTLL[i] = currentHGTLL[i];
 
         }
-        currentLL = currentHLL;
-        GLOBALBESTLL = currentHLL;
+        currentLL = currentHLL ;
+
+        Network st = Networks.readNetwork(operator.removeOutgroup(INIT_ST.toString()));
+        List<Double> gtsllList = getLocusGTLL(tempGTs, st);
+        for(int i = 0; i<gtsllList.size(); i++){
+            currentLL += gtsllList.get(i);
+            System.out.println("currentLL : " + currentLL);
+
+        }
+        System.out.println("currentLL : " + currentLL);
+        GLOBALBESTLL = currentLL;
+        maxLL = currentLL;
 
 //        double p2 = currentHLL-currentLL;
 //        if (FULL_LL)
 //            iter_LL = currentHLL*ll_Ratio + p2*(2-ll_Ratio);
 //        else
-        iter_LL = currentHLL;
+        iter_LL = currentLL;
 
         gtsHLL[0] = currentHLL;
         gtsLL[0] = currentLL;
         GLOBALBESTST = INIT_ST.toString();
-        trueST = operator.rerootAndRemove(trueST,"O");
+       // trueST = operator.rerootAndRemove(trueST,"O");
         stDis[0] = operator.getDistance(Trees.readTree(GLOBALBESTST), Trees.readTree(trueST));
         double thisD = 0.0;
         //finalGTS = tempGTs;
         for (int k = 0; k < lociNum; k++){
-            trueGTS.set(k,operator.rerootAndRemove(trueGTS.get(k),"O"));
+            //trueGTS.set(k,operator.rerootAndRemove(trueGTS.get(k),"O"));
             double d = operator.getDistance((Tree) finalGTS.get(k), Trees.readTree(trueGTS.get(k)));
             System.out.println("# " + k + " : " + d);
             gtDis_Locus[0][k] = d;
@@ -930,8 +958,17 @@ public class RMSImprovement {
         System.out.println("AST String :"+stString);
 
 //TODO 8.3
-        Network n = operator.reRootAST(Trees.readTree(stString) ,"O");
-        optimizeBL(gtsOG,n,ogHeight[0]);
+        Network n;
+//        if(itNum == 0){
+//            n = Networks.readNetwork(stString);
+//            for(int i = 0; i< lociNum; i++){
+//
+//            }
+//        }
+//        else {
+            n = operator.reRootAST(Trees.readTree(stString), "O");
+            optimizeBL(gtsOG, n, ogHeight[0]);
+//        }
         return (BniNetwork<NetNodeInfo>) n;
     }
 
@@ -980,7 +1017,7 @@ public class RMSImprovement {
                         double distance = Double.POSITIVE_INFINITY;
                         distance = getDist(tempNode.getName(), sib.getName(), gtsOG, st);
                         if(distance==0||distance == Double.POSITIVE_INFINITY) {
-                            distance = ogHeight / 5000;
+                            distance = ogHeight ;
                         }
                         tempNode.setParentDistance(p, distance / 2);
                         sib.setParentDistance(p, distance / 2);
@@ -991,7 +1028,8 @@ public class RMSImprovement {
                     else {
                         // lowerDist
                         if(sib.getParentDistance(p)==0||sib.getParentDistance(p)==Double.NEGATIVE_INFINITY)
-                            sib.setParentDistance(p,ogHeight/10000);
+                            //TODO
+                            sib.setParentDistance(p,ogHeight/100);
                         if (height.containsKey(sib.getName())) {
                             tempNode.setParentDistance(p, height.get(sib.getName()) + sib.getParentDistance(p));
                             height.put(p.getName(), height.get(sib.getName()) + sib.getParentDistance(p));
@@ -1007,7 +1045,6 @@ public class RMSImprovement {
                 }
             }
         }
-
         return st;
     }
 

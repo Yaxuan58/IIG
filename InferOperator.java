@@ -223,7 +223,7 @@ public class InferOperator {
     public Alignment loadLocus(int seqNum, int seqLength, int taxaNum) throws IOException {
         //"seq_" + tid + "_" + seqLen +".nex";scale + "/seq_" + i + "_" + len + ".nex"
         Map<String, String> locus = new HashMap<String, String>();
-        String inputFile = SEQ_DIR + "/" + iteration + "/seq_" + seqNum + "_" + seqLength + ".nex";
+        String inputFile = "/Users/doriswang/PhyloNet/Data/IIG/symmetrical/200/seq_" + seqNum + "_" + seqLength + ".nex";
         BufferedReader br = new BufferedReader(new FileReader(inputFile));
         String line = "";
         int j = 1;
@@ -241,9 +241,23 @@ public class InferOperator {
             String seq = "";
             seq = temp[1].substring(0, seqLength);
             locus.put(lociName, seq);
-            locus.remove("O");
+            //locus.remove("O");
         }
         Alignment aln = new Alignment(locus);
+
+        BufferedWriter phy = new BufferedWriter(new FileWriter(_RAxMLdir + seqNum + "/dna.phy"));
+        phy.write(taxaNum + " " + seqLength + '\n');
+        phy.flush();
+        List<String> names = aln.getTaxaNames();
+        Map<String, String> thisAln = aln.getAlignment();
+        for (int i = 0; i < taxaNum; i++) {
+            String name = names.get(i);
+            String seq = thisAln.get(name);
+            phy.write(name + '\t' + seq + '\n');
+        }
+        phy.flush();
+        phy.close();
+
         return aln;
     }
 
@@ -543,6 +557,7 @@ public class InferOperator {
 //            stReader.readLine().trim();
 //        }
         // 6.5 : count bp Number to decide if continue
+        stReader = new BufferedReader(new FileReader(filePath + "Tree/trueGTS.txt"));
         for (int ln = 0; ln < lociNum ; ln++) {
             String tree = stReader.readLine().trim();
             trueGTS.add(tree);
@@ -551,7 +566,7 @@ public class InferOperator {
         for (int ln = 0; ln < lociNum ; ln++) {
             int tempLN = ln ;
             //TODO different file name
-            BufferedReader sReader = new BufferedReader(new FileReader(seqPath + "seq_" + tempLN + "_2000.nex"));
+            BufferedReader sReader = new BufferedReader(new FileReader(seqPath + "seq_" + tempLN + "_1000.nex"));
             int j = 0;
             while (j < 20) {
                 sReader.readLine();
@@ -1263,16 +1278,17 @@ public class InferOperator {
         return ll;
     }
 
+
     //Input: trees[], ll[] ,lociNum
     //Output: double[] ll, trees[]
     public double[] getInitTree(String[] trees, double[] ll, int lociNum) throws IOException {
 
         for(int j = 0; j<lociNum; j++){
-            String tFile = _RAxMLdir + "initTrees/" + "RAxML_bestTree.T" + String.valueOf(j);
+            String tFile = _RAxMLdir + "RAxML_bestTree.T" + String.valueOf(j);
             BufferedReader tReader = new BufferedReader(new FileReader(tFile));
             trees[j] = tReader.readLine().trim();
             tReader.close();
-            String llFile = _RAxMLdir + "initTrees/" + "RAxML_info.T" + String.valueOf(j);
+            String llFile = _RAxMLdir + "RAxML_info.T" + String.valueOf(j);
             BufferedReader llReader = new BufferedReader(new FileReader(llFile));
             while(true){
                 String temp = llReader.readLine().trim();
@@ -1435,6 +1451,7 @@ public class InferOperator {
         return ogGTS;
     }
 
+    //DO NOT change original trees
     public List<Tree> getNoOGGTS(List<Tree> ogGTS){
         List<Tree> gts = new ArrayList<Tree>();
         for(int i = 0;i<ogGTS.size();i++){
@@ -1576,6 +1593,81 @@ public class InferOperator {
         return ultraGTS;
     }
 
+    //Input: gt, shortest external length(ST height)
+    public Tree getUTree(Tree gt, double base) {
+        TNode lowLeaf = gt.getNodes().iterator().next();
+        double distance = 0.0;
+        Iterator nodeIt = gt.getNodes().iterator();
+        while(nodeIt.hasNext()){
+            TNode temp = (TNode)nodeIt.next();
+            if(temp.isLeaf()){
+                double tempDistance = getLeafHeight(temp, gt);
+                if(tempDistance>distance){
+                    distance = tempDistance;
+                    lowLeaf = temp;
+                }
+            }
+            else
+                continue;
+        }
+        double height = distance + base;
+
+        Iterator nodeIt1 = gt.getNodes().iterator();
+        while(nodeIt1.hasNext()){
+            TNode temp = (TNode)nodeIt1.next();
+            if(temp.isLeaf()){
+                double addition = height - getLeafHeight(temp, gt);
+                temp.setParentDistance(temp.getParentDistance()+addition);
+
+            }
+        }
+        //ltrametricTree ultraGT = new UltrametricTree(gt);
+        return gt;
+    }
+
+    public Tree cleanName(Tree t) {
+        Iterator node = t.getNodes().iterator();
+        while(node.hasNext()){
+            STINode stNode = (STINode)node.next();
+            if(stNode.isLeaf())
+                continue;
+            stNode.setName("");
+        }
+        return t;
+    }
+
+    public Network getUTree(Network tempST, double[] height) {
+        Tree st = Trees.readTree(tempST.toString());
+        TNode lowLeaf = st.getNodes().iterator().next();
+        double distance = 0.0;
+        Iterator nodeIt = st.getNodes().iterator();
+        while(nodeIt.hasNext()){
+            TNode temp = (TNode)nodeIt.next();
+            if(temp.isLeaf()){
+                double tempDistance = getLeafHeight(temp, st);
+                if(tempDistance>distance){
+                    distance = tempDistance;
+                    lowLeaf = temp;
+                }
+            }
+            else
+                continue;
+        }
+        height[2] = distance;
+
+        Iterator nodeIt1 = st.getNodes().iterator();
+        while(nodeIt1.hasNext()){
+            TNode temp = (TNode)nodeIt1.next();
+            if(temp.isLeaf()){
+                double addition = height[2] - getLeafHeight(temp, st);
+                temp.setParentDistance(temp.getParentDistance()+addition);
+
+            }
+        }
+        return Networks.readNetwork(st.toString());
+    }
+
+
     public double getDistance(Tree tree1, Tree tree2) {
         SymmetricDifference symmetricDifference = new SymmetricDifference();
         symmetricDifference.computeDifference(tree1, tree2, false);
@@ -1598,6 +1690,17 @@ public class InferOperator {
         while (leaf != currentST.getRoot()) {
             currentHeight += leaf.getParentDistance((NetNode) leaf.getParents().iterator().next());
             leaf = (NetNode) leaf.getParents().iterator().next();
+        }
+        return currentHeight;
+    }
+
+    //for Tree
+    public double getLeafHeight(TNode leaf, Tree currentST) {
+        double currentHeight = 0.0;
+        //NetNode leaf = (NetNode) currentST.getLeaves().iterator().next();
+        while (leaf != currentST.getRoot()) {
+            currentHeight += leaf.getParentDistance();
+            leaf = (TNode) leaf.getParent();
         }
         return currentHeight;
     }
