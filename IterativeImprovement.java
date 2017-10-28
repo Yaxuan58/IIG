@@ -142,10 +142,10 @@ public class IterativeImprovement {
 
             trueST = trees.get(0);
             trueGTS = trees.subList(1, trees.size());
-            for (int i = 0; i < lociNum; i++) {
-                Alignment aln = operator.loadLocus(i, _seqLens[0], taxaNum);
-                trueSeq.add(aln);
-            }
+//            for (int i = 0; i < lociNum; i++) {
+//                Alignment aln = operator.loadLocus(i, _seqLens[0], taxaNum);
+//                trueSeq.add(aln);
+//            }
         }
     }
 //    public List<Alignment> loadData(int stNum) throws IOException{

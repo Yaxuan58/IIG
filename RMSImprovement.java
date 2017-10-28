@@ -182,7 +182,7 @@ public class RMSImprovement {
             //trueGTS = trees.subList(1, trees.size());
             for (int i = 0; i < lociNum; i++) {
                 trueGTS.add(operator.removeOutgroup(trees.get(i+1)));
-                Alignment aln = operator.loadLocus(i, _seqLens[0], taxaNum);
+                Alignment aln = operator.loadLocus(i, _seqLens[0], taxaNum, "/Users/doriswang/PhyloNet/Data/IIG/symmetrical/200/Seq/");
                 trueSeq.add(aln);
             }
         }
@@ -204,7 +204,6 @@ public class RMSImprovement {
         itNum++;
         System.out.println("\n" + "#0"  + " iteration start! ");
         System.out.println("Current LL is"  + GLOBALBESTLL);
-
         System.out.println("RF of Best ST : " + operator.getDistance(Trees.readTree(GLOBALBESTST), Trees.readTree(trueST)));
         System.out.println("Average distance of GTS is " + gtDis[0]);
         for (int i = 1; i < t; i++) {

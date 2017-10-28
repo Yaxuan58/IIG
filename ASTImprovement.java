@@ -189,7 +189,7 @@ public class ASTImprovement {
             trueST = trees.get(0);
             trueGTS = trees.subList(1, trees.size());
             for (int i = 0; i < lociNum; i++) {
-                Alignment aln = operator.loadLocus(i, _seqLens[0], taxaNum);
+                Alignment aln = operator.loadLocus(i, _seqLens[0], taxaNum, "/Users/doriswang/PhyloNet/Data/17-taxon/004/ST0/1/Seq/");
                 trueSeq.add(aln);
             }
         }

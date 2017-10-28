@@ -2,6 +2,7 @@ package edu.rice.cs.bioinfo.programs.phylonet.algos.iterHeuristic;
 
 import edu.rice.cs.bioinfo.library.programming.Tuple;
 import edu.rice.cs.bioinfo.programs.phylonet.algos.MCMCseq.felsenstein.alignment.Alignment;
+import edu.rice.cs.bioinfo.programs.phylonet.algos.MCMCseq.structs.UltrametricTree;
 import edu.rice.cs.bioinfo.programs.phylonet.algos.simulator.SimGTInNetworkByMS;
 import edu.rice.cs.bioinfo.programs.phylonet.structs.network.Network;
 
@@ -56,9 +57,15 @@ public class IIGTSimulator {
     }
 
     public static void main(String[] args) throws IOException, InterruptedException{
-        _seqLens = new int[] {200};
-        IIGTSimulator simulator1 = new IIGTSimulator(100, _scales, _seqLens, 0.0005, 10);
-        simulator1.simulateSampleData();
+        _seqLens = new int[] {50,100,200,400,600,800,1000};
+        IIGTSimulator simulator1 = new IIGTSimulator(200, _scales, _seqLens, 0.005, 10);
+
+
+        //TODO: CAUTION!!!
+        //simulator1.simulateSampleData();
+        checkTreeBias("/Users/doriswang/PhyloNet/Data/IIG/symmetrical1/0001/", 200, 16, _seqLens);
+
+
 //        simulator1.simulateSeqByGTS(32, 1000, 0.005, "/Users/doriswang/PhyloNet/Data/17-taxon/001/ST0/1/Seq/");
 
             //RawDataProcessor r = new RawDataProcessor();
@@ -246,6 +253,98 @@ public class IIGTSimulator {
     }
 
 
+    public static List<String> checkTreeBias(String filePath, int lociNum, int taxaNum, int[] _seqLens) throws IOException, InterruptedException {
+        InferOperator operator = new InferOperator(100);
+        List<String> trees = new ArrayList<String>();
+        List<Tree> gts = new ArrayList<Tree>();
+        String streeFile = filePath + "Tree/trueST.txt";
+        BufferedReader stReader = new BufferedReader(new FileReader(streeFile));
+        Tree trueST = Trees.readTree(stReader.readLine().trim());
+        //trees.add(trueST);
+        ;
+        //True GTS distance between ST
+        double[][] trueGTDistance = new double[lociNum][2];
+        BufferedWriter stWriter = new BufferedWriter(new FileWriter(filePath + "trueGTDist.txt"));
+        stWriter.write("#lociNum " + " :" + "    " + "unrooted distance" + "   " + "rooted distance" + "\n");
+        double tempD = 0.0;
+        double tempRootedD = 0.0;
+        double tempDST = 0.0;
+        double tempRootedDST = 0.0;
+        List<Integer> goodSTs = new ArrayList<Integer>();
+        for (int ln = 0; ln < lociNum; ln++) {
+            String tree = stReader.readLine().trim();
+            trees.add(tree);
+            Tree temp = Trees.readTree(tree);
+            gts.add(temp);
+            trueGTDistance[ln][0] = operator.getDistance(temp, trueST);
+            tempD += trueGTDistance[ln][0];
+            trueGTDistance[ln][1] = operator.getRootDistance(temp, trueST);
+            tempRootedD += trueGTDistance[ln][1];
+            stWriter.write("# " + ln + " :" + "    " + trueGTDistance[ln][0] + "   " + trueGTDistance[ln][1] + "\n");
+            if (trueGTDistance[ln][0] < 0.2)
+                goodSTs.add(ln);
+            stWriter.flush();
+        }
+        stWriter.write("Unrooted AVG " + tempD / lociNum + "   " + "Rooted AVG " + tempRootedD / lociNum + "\n");
+
+        stWriter.close();
+        stReader.close();
+
+        //get distance[#lociNum][seqLens]
+        double[][] distance = new double[lociNum][_seqLens.length];
+        double[][] distanceST = new double[lociNum][_seqLens.length];
+        double[][] rootedDistance = new double[lociNum][_seqLens.length];
+        double[][] rootedDistanceST = new double[lociNum][_seqLens.length];
+
+        for (int j = 0; j < _seqLens.length; j++) {
+            tempD = 0.0;// infer-trueG
+            tempRootedD = 0.0;// R-infer-trueG
+            tempDST = 0.0; // infer-ST
+            tempRootedDST = 0.0;// R-infer-trueST
+            BufferedWriter gt1Writer = new BufferedWriter(new FileWriter(filePath + _seqLens[j] + "_GTBias.txt"));
+            gt1Writer.write("#lociNum " + " :" + "    " + "U-ST_true_iGT distance" + "    " + "R-ST_true_iGT distance" +  "   " + "U-true_iGT distance" + "   " + "R-true_iGT distance" + "      " + "U-ST_true_GT distance" + "\n");
+            List<Alignment> alns = new ArrayList<Alignment>();
+
+            for (int i = 0; i < lociNum; i++) {
+
+                Alignment aln = operator.loadLocus(i, _seqLens[j], taxaNum, filePath);
+                alns.add(aln);
+            }
+            List<UltrametricTree> uTrees = operator.simGTSByUPGMA(alns);
+            for (int i = 0; i < lociNum; i++) {
+                distance[i][j] = operator.getDistance(uTrees.get(i).getTree(), gts.get(i));
+                tempD += distance[i][j];
+                distanceST[i][j] = operator.getDistance(uTrees.get(i).getTree(), trueST);
+                tempDST += distanceST[i][j];
+                rootedDistanceST[i][j] = operator.getRootDistance(uTrees.get(i).getTree(), trueST);
+                tempRootedDST += rootedDistanceST[i][j];
+                rootedDistance[i][j] = operator.getRootDistance(uTrees.get(i).getTree(), gts.get(i));
+                tempRootedD += rootedDistance[i][j];
+
+                gt1Writer.write("# " + i + " :"  + "    " + distanceST[i][j] + "    " + rootedDistanceST[i][j] + "   " + distance[i][j] + "    " + rootedDistance[i][j] + "    " + trueGTDistance[i][0] + "    " + trueGTDistance[i][1] + "\n");
+                gt1Writer.flush();
+
+            }
+
+            gt1Writer.write("Unrooted AVG " + tempD / lociNum + "   " + "Rooted AVG " + tempRootedD / lociNum   + "\n" + "     " + "ST distance AVG " + tempDST / lociNum +  "Rooted ST distance AVG " + tempRootedDST / lociNum + "\n");
+            gt1Writer.close();
+        }
+        BufferedWriter tempWriter = new BufferedWriter(new FileWriter(filePath + "summary.txt"));
+        tempWriter.write("#lociNum " + " :" + "    " + "U-ST_true_GT distance" + "    " + "R-ST_true_GT distance" + "    "  + "\n");
+        tempWriter.write("    " + " Seq_Length: " + "    " + "U-ST_iGT distance" + "    " + "R-ST_iGT distance" + "    " + "U-true_iGT distance" + "   " + "R-true_iGT distance" + "      " + "\n");
+        tempWriter.flush();
+        for (int i = 0; i < goodSTs.size(); i++) {
+            tempWriter.write("#Locus_" + goodSTs.get(i) + " :" + "    " + trueGTDistance[goodSTs.get(i)][0] + "   " +  trueGTDistance[goodSTs.get(i)][1] +  "      " + "\n");
+            for (int j = 0; j < _seqLens.length; j++) {
+                tempWriter.write("    " + _seqLens[j] + ": " + "    " + distanceST[goodSTs.get(i)][j] + "   " +  rootedDistanceST[goodSTs.get(i)][j] + "    " + distance[goodSTs.get(i)][j] + "   " +  rootedDistance[goodSTs.get(i)][j] +  "      " + "\n");
+                tempWriter.flush();
+            }
+            tempWriter.flush();
+        }
+        tempWriter.close();
+    return trees;
+    }
+
     public static List<String> simulateData() {
         List<String> trees = new ArrayList<String>();
         try {
@@ -352,7 +451,8 @@ public class IIGTSimulator {
     public static List<String> simulateSampleData() {
         List<String> trees = new ArrayList<String>();
         try {
-                Network trueST = Networks.readNetwork("(((((1:1,2:1):1,(3:1,4:1):1):1,((5:1,6:1):1,(7:1,8:1):1):1):1,(((9:1,10:1):1,(11:1,12:1):1):1,((13:1,14:1):1,(15:1,16:1):1):1):1):16,O:20);");
+//                Network trueST = Networks.readNetwork("((((1:1,2:1):1,(3:1,4:1):1):1,((5:1,6:1):1,(7:1,8:1):1):1):1,(((9:1,10:1):1,(11:1,12:1):1):1,((13:1,14:1):1,(15:1,16:1):1):1):1);");
+            Network trueST = Networks.readNetwork("(1:1,(2:1,(3:1,(4:1,(5:1,(6:1,(7:1,(8:1,(9:1,(10:1,(11:1,(12:1,(13:1,(14:1,(15:1,16:1):1):1):1):1):1):1):1):1):1):1):1):1):1):1);");
 
                 Iterator itNode = trueST.getTreeNodes().iterator();
                 while (itNode.hasNext()) {
@@ -368,17 +468,18 @@ public class IIGTSimulator {
                 }
 
                 trees.add(trueST.toString());
-
-
                 //String folder = "" + iteration;
-                String seqDir = "/Users/doriswang/PhyloNet/Data/IIG/symmetrical/" + _seqLens[0] + "/";
-                String treeDir = "/Users/doriswang/PhyloNet/Data/IIG/symmetrical/"  + _seqLens[0] + "/Tree/";
+                InferOperator operator = new InferOperator(100);
 
+                String seqDir = "/Users/doriswang/PhyloNet/Data/IIG/asymmetrical1/001/";
+                String treeDir = "/Users/doriswang/PhyloNet/Data/IIG/asymmetrical1/001/Tree/";
+                operator.isExitsPath(seqDir);
+                operator.isExitsPath(treeDir);
                 BufferedWriter bw = new BufferedWriter(new FileWriter(treeDir + "trueST.txt"));
                 bw.write(trueST.toString() + "\n");
                 Map<String, List<String>> species2alleles = null;
-                List<Tree> trueGTs = simulateGeneTrees(trueST, species2alleles, 100);
-                for (int tid = 0; tid < 100; tid++) {
+                List<Tree> trueGTs = simulateGeneTrees(trueST, species2alleles, numGTs);
+                for (int tid = 0; tid < numGTs; tid++) {
                     String gt = trueGTs.get(tid).toNewick();
                     trees.add(gt);
                     bw.write(gt + "\n");
@@ -725,6 +826,7 @@ public class IIGTSimulator {
         //System.out.println(sim.getMSCommand());
         return gts;
     }
+
 
 //    //nodesName can be used if leafName != int number
 //    public static String generateMSCMD(Network net, int numGT, Map<String, Integer> nodesName) {

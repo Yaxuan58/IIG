@@ -1,0 +1,1058 @@
+package edu.rice.cs.bioinfo.programs.phylonet.algos.iterHeuristic;
+
+/**
+ * Created by doriswang on 10/22/17.
+ * UPGMA + GLASS + ASTRAL + RAxML
+ */
+
+
+import edu.rice.cs.bioinfo.programs.phylonet.algos.MCMCseq.felsenstein.likelihood.BeagleTreeLikelihood;
+import edu.rice.cs.bioinfo.programs.phylonet.algos.MCMCseq.felsenstein.sitemodel.SiteModel;
+import edu.rice.cs.bioinfo.programs.phylonet.algos.MCMCseq.felsenstein.substitution.Frequencies;
+import edu.rice.cs.bioinfo.programs.phylonet.algos.MCMCseq.felsenstein.substitution.JukesCantor;
+import edu.rice.cs.bioinfo.programs.phylonet.algos.MCMCseq.felsenstein.substitution.SubstitutionModel;
+import edu.rice.cs.bioinfo.programs.phylonet.algos.MCMCseq.structs.NetNodeInfo;
+import edu.rice.cs.bioinfo.programs.phylonet.algos.MCMCseq.structs.UltrametricNetwork;
+import edu.rice.cs.bioinfo.programs.phylonet.algos.MCMCseq.structs.UltrametricTree;
+
+import edu.rice.cs.bioinfo.programs.phylonet.algos.MCMCseq.felsenstein.alignment.Alignment;
+import edu.rice.cs.bioinfo.programs.phylonet.algos.MCMCseq.util.TemporalConstraints;
+import edu.rice.cs.bioinfo.programs.phylonet.algos.MCMCseq.util.Utils;
+import edu.rice.cs.bioinfo.programs.phylonet.algos.coalescent.GLASSInference;
+import edu.rice.cs.bioinfo.programs.phylonet.algos.network.GeneTreeProbability;
+import edu.rice.cs.bioinfo.programs.phylonet.algos.network.GeneTreeWithBranchLengthProbabilityYF;
+import edu.rice.cs.bioinfo.programs.phylonet.structs.network.NetNode;
+import edu.rice.cs.bioinfo.programs.phylonet.structs.network.Network;
+import edu.rice.cs.bioinfo.programs.phylonet.structs.network.model.bni.BniNetNode;
+import edu.rice.cs.bioinfo.programs.phylonet.structs.network.model.bni.BniNetwork;
+import edu.rice.cs.bioinfo.programs.phylonet.structs.network.util.Networks;
+import edu.rice.cs.bioinfo.programs.phylonet.structs.tree.io.ParseException;
+import edu.rice.cs.bioinfo.programs.phylonet.structs.tree.model.MutableTree;
+import edu.rice.cs.bioinfo.programs.phylonet.structs.tree.model.TMutableNode;
+import edu.rice.cs.bioinfo.programs.phylonet.structs.tree.model.TNode;
+import edu.rice.cs.bioinfo.programs.phylonet.structs.tree.model.Tree;
+import edu.rice.cs.bioinfo.programs.phylonet.structs.tree.model.sti.STINode;
+import edu.rice.cs.bioinfo.programs.phylonet.structs.tree.model.sti.STITree;
+import edu.rice.cs.bioinfo.programs.phylonet.structs.tree.util.Trees;
+import org.jcp.xml.dsig.internal.dom.DOMUtils;
+import sun.nio.ch.Net;
+
+import java.io.*;
+//import java.io.IOException;
+import java.util.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+public class UGARInfer {
+    protected static String _msdir;
+    protected static String _ASTRALdir;
+    private static String TREE_DIR;
+    private static String SEQ_DIR;
+    private static String RESULT_DIR;
+    private static boolean TEST;
+
+    private Network<NetNodeInfo> INIT_ST; //cUnit
+    private Network<NetNodeInfo> currentST;
+    private static String trueST;
+    private Tree Constraint_ST;// GLASS tree from UPGMA. For external branch
+
+    private List<String> trueGTS;
+    private List<Tree> trueTopos;
+    private List<Tree> finalGTS;
+    private static List<Alignment> trueSeq;
+
+
+    private String GLOBALBESTST;
+    private List<String> GLOBALBESTGTS;
+    private double GLOBALBESTLL;
+
+//    //7.26
+//    private List<String> checkedTopo;  //topos as checked order
+//    private List<List<Tree>> optGTSList;  // For one locus l, locus<map<bestGT,LL>>
+//
+
+    private static HashMap<String, Double> cHeights;
+
+
+    private IIGTSimulator simulator;
+    private InferOperator operator;
+
+    //TODO: PARA
+    private static int ITERATION; //{1k, 5k ,10k}
+    private static boolean ISREALDATA;
+    private static boolean FULL_LL;
+    private static String DATASET;
+    private static double halfTheta;//need to init in ALL classes ||  theta -> POP_SIZE
+    private static Integer lociNum;
+    private static Integer refineGTSize;
+
+    private static double[] _scales; //temp never used
+    private static int[] _seqLens;
+    private static int taxaNum;
+
+    private double[] iterLLSeq;// LL(Seq|GTS) for each locus for iteration i
+    private double[] iterLLST;// LL(Seq|GTS) for each locus for iteration i
+    private double[] gtsLL;// LL(Seq|GTS)*(GTS|ST) for all locus for iteration i
+    private double[] gtsHLL;// LL(Seq|GTS) for all locus for iteration i
+    private double[] currentITLL; //=gtsLL[iter]
+    private double currentLL;//=gtsLL[iter] LL(Seq|GTS)*(GTS|ST) for all locus for iteration i
+    private double currentHLL;// =gtsHLL[iter]
+    private double[] currentGTLL; // = iterLLST
+    private double[] currentHGTLL; // = iterLLSeq
+    private double[] gtDis;
+
+    private List<Double> bestSTLL;// temporary best ST LL for iteration i
+    private List<Double> bestSTD;//temporary best ST distance for iteration i
+    private List<Integer> bestITNum;///temporary best iteration number for iteration i
+    private int bestLLIter;//iteration number for best Global ST
+
+    private double[] stDis;//ST_i for each iteration
+    private double[] stRootedDis;//ST_i for each iteration
+
+    private double[][] gtDis_Locus;// gt distance for each locus for each iteration
+    private double[][] msDist_Locus;// ms_gt distance for each locus for each iteration --> to test the efficiency of MS
+
+
+    private double maxLL; //current best LL
+    //private double iter_LL; //=currentLL
+    //            double bestLL = llList[0] + ll_Ratio*msTopoLL.get(i);
+    private double ll_Ratio; // (For Expectation) : E = p(Seq|raxml_G) * ratio P(ms_G|ST)   because P(G|ST) is not accurate
+    private int itNum;// iteration number
+    private long[] time; // ?
+    private static String STRATEGY; //RANDOM IMPROVE NONE
+    private double[] locusGTLL; // P(Seq|GT)
+    private List<Tree> locusBestGTS;
+    private double[] weights;
+    private  double[] astInit;
+
+    //All parameters should be initialed here
+    UGARInfer() throws IOException, InterruptedException, ParseException {
+
+        _msdir = "/Users/doriswang/PhyloNet/tools/msFiles/msdir/ms";
+        _ASTRALdir = "/Users/doriswang/PhyloNet/tools/Astral/";
+        TREE_DIR = "/Users/doriswang/PhyloNet/Data/IIG/tree/";
+        SEQ_DIR = "/Users/doriswang/PhyloNet/Data/IIG/seq/";
+        RESULT_DIR = "/Users/doriswang/PhyloNet/Data/IIG/result/";
+
+        trueGTS = new ArrayList<String>();
+        finalGTS = new ArrayList<Tree>();
+        trueTopos = new ArrayList<Tree>();
+
+
+        GLOBALBESTGTS = new ArrayList<String>();
+        trueSeq = new ArrayList<Alignment>();
+        //TODO: PARA
+        ITERATION = 20; //{1k, 5k ,10k}
+        ISREALDATA = false;
+        FULL_LL = true;
+        DATASET = "17";
+        halfTheta = 0.0005;//need to init in ALL classes ||  theta -> POP_SIZE
+        lociNum = 10;
+        //ifOutGroup = false;
+
+        //ogHeight = new double[3]; // og height from all initGT[min, max]
+        refineGTSize = 50;
+        _scales = new double[]{1.0};
+        _seqLens = new int[]//{200, 400,600,800,1000};
+                {200, 400,600,800,1000,200, 400,600, 800,1000};
+                //{200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200};
+        taxaNum = 16;
+        ll_Ratio = 1.0; // P(seq|GT): p(GT|ST)
+        gtsLL = new double[ITERATION];// LL(Seq|GTS)*(GTS|ST)
+        // LL(Seq|GTS)*(GTS|ST) for pseudo version || not used for classic version
+        gtsHLL = new double[ITERATION];
+        currentITLL = new double[ITERATION];
+        currentLL = 0.0; // LL(Seq|GTS)*(GTS|ST)
+        currentHLL = 0.0;
+        currentGTLL = new double[lociNum]; // P(Seq|GT)
+        currentHGTLL = new double[lociNum];
+        currentITLL = new double[ITERATION];
+
+        cHeights = new HashMap<String, Double>();
+        gtDis = new double[ITERATION];
+        stDis = new double[ITERATION];
+        stRootedDis = new double[ITERATION];
+        gtDis_Locus = new double[ITERATION][lociNum];
+        msDist_Locus = new double[ITERATION][lociNum];
+        time = new long[2];
+        bestLLIter = 0;
+        bestITNum = new ArrayList<Integer>();
+        bestSTLL = new ArrayList<Double>();
+        bestSTD = new ArrayList<Double>();
+        STRATEGY = "RANDOM"; //RANDOM IMPROVE N
+        //TODO Simulation
+        simulator = new IIGTSimulator(lociNum, _scales, _seqLens, halfTheta, ITERATION);
+        operator = new InferOperator(ITERATION);
+        String resultFolder = RESULT_DIR + ITERATION + "/" + taxaNum + "_" + lociNum + "/" + refineGTSize + "/";
+        operator.isExitsPath(resultFolder);
+        locusBestGTS = new ArrayList<Tree>();
+        locusGTLL = new double[lociNum];
+        weights = new double[]//{1,2,3,4,5};
+                {1,2,3,4,5,1,2,3,4,5};
+        astInit = new double[2];
+        List<String> trees = simulator.loadTrees("/Users/doriswang/PhyloNet/Data/IIG/symmetrical1/0001/", lociNum);
+        trueST = trees.get(0);
+        //trueGTS = trees.subList(1, trees.size());
+        for (int i = 0; i < lociNum; i++) {
+            trueGTS.add(trees.get(i + 1));
+            trueTopos.add(Trees.readTree(trees.get(i + 1)));
+            Alignment aln = operator.loadLocus(i, _seqLens[i], taxaNum, "/Users/doriswang/PhyloNet/Data/IIG/symmetrical1/0001/");
+            trueSeq.add(aln);
+        }
+        for(int i = 0; i<lociNum; i++){
+            locusGTLL[i] = Double.NEGATIVE_INFINITY;
+        }
+        //weights = {5,1,1,1,1};
+    }
+
+    public static void main(String[] args) throws IOException, ParseException, InterruptedException {
+
+        UGARInfer ui = new UGARInfer();
+        //ui.rootST(Trees.readTree("(((((((14:0.9055217709140966,13:0.9055217709140966)I4:0.4465056579784318,16:1.3520274288925282)I3:0.22884157242884753,15:1.5808690013213758)I2:0.3381782364663133,(((2:0.0171475,1:0.0171475)I7:0.48835276791393223,(4:0.019,3:0.019)I8:0.48835276791393223)I6:0.48835276791393223,((8:0.019,7:0.019)I10:0.7278327385478351,(6:0.9531808114885227,5:0.9531808114885227)I11:0.29528667183700014)I9:0.35829963966573414)I5:0.5906316170343503)I1:0.17496233875194434,(10:0.9531808114885227,9:0.9531808114885227)I12:0.9219887529887928)I0:0.6061358035703156,12:2.978496882347867):1.0E-6,11:2.978497882347867);"));
+        ui.infer(trueSeq, ITERATION);
+        System.out.println("Finish");
+    }
+
+    //main function
+    //Input: true alignments
+    //Output: best ST
+    public List<Tree> infer(List<Alignment> aln, int t) throws IOException, ParseException, InterruptedException {
+        //CHANGE: PARA
+        itNum = 0;
+        ITERATION = t;
+        List<Tree> gts = operator.initFasttree(trueSeq,_seqLens,lociNum);
+        double dist = 0.0;
+        for(int i=0;i<gts.size();i++){
+            dist+=operator.getDistance(gts.get(i),Trees.readTree(trueGTS.get(i)));
+        }
+        astInit[1] = dist/gts.size();
+        System.out.println("AST init GT distance: " + astInit[1]);
+
+        String n = initAST(gts);
+        astInit[0] = operator.getDistance(Trees.readTree(n),Trees.readTree(trueST));
+        System.out.println("AST init ST distance: " + astInit[0]);
+        long start = System.currentTimeMillis();
+
+        //Part 1: Initialization
+        Network<NetNodeInfo> tempST = initST(aln);
+        itNum++;
+        System.out.println("\n" + "#0" + " iteration start! ");
+        System.out.println("Current LL is" + GLOBALBESTLL);
+
+        System.out.println("RF of Best ST : " + operator.getDistance(Trees.readTree(GLOBALBESTST), Trees.readTree(trueST)));
+        System.out.println("Average distance of GTS is " + gtDis[0]);
+
+        //Part 2: Expectation Maximization:
+        for (int i = 1; i < t; i++) {
+            System.out.println("\n" + "#" + itNum + " iteration start! ");
+            System.out.println(" Current ST is " + tempST.toString());
+            tempST = refineGeneSet(tempST);
+            itNum++;
+        }
+
+        long end = System.currentTimeMillis();
+        long costtime = end - start;
+        String resultFolder = RESULT_DIR + ITERATION + "/" + taxaNum + "_" + lociNum + "/" + refineGTSize + "/";
+        operator.isExitsPath(resultFolder);
+        BufferedWriter llOut1 = new BufferedWriter(new FileWriter(resultFolder + "RunningTime.txt"));
+        llOut1.write("Running time:" + String.valueOf(costtime) + "\n");
+        llOut1.write("Running time for p(GTS|ST):" + String.valueOf(time[0]) + "\n");
+        llOut1.write("Running time for p(Seq|GTS)*p(GTS|ST):" + String.valueOf(time[1]) + "\n");
+
+        // System.out.println("------Running time: " + costtime);
+        operator.isExitsPath(resultFolder);
+        llOut1.flush();
+        llOut1.close();
+        BufferedWriter llOut = new BufferedWriter(new FileWriter(resultFolder + "HLikelihood.txt"));
+        for (int k = 0; k < ITERATION; k++) {
+            llOut.write(k + " " + String.valueOf(gtsHLL[k]) + "\n");
+        }
+        //TODO llOut.write("AVE: " + operator.getAverage(gtsHLL));
+        //TODO llOut.write("SD: " + operator.getStandardDevition(gtsHLL));
+        llOut.flush();
+        llOut.close();
+        BufferedWriter llPOut = new BufferedWriter(new FileWriter(resultFolder + "FullLikelihood.txt"));
+        gtsLL[0] = gtsLL[1];
+        for (int k = 0; k < ITERATION; k++) {
+            llPOut.write(k + " " + String.valueOf(gtsLL[k]) + "\n");
+        }
+        //TODO llPOut.write("AVE: " + operator.getAverage(gtsLL));
+        //TODO llPOut.write("SD: " + operator.getStandardDevition(gtsLL));
+        llPOut.flush();
+        llPOut.close();
+        for (int tid = 0; tid < lociNum; tid++) {
+
+            String fileName = resultFolder + "GTDistance_" + tid + ".txt";
+            BufferedWriter out = new BufferedWriter(new FileWriter(fileName));
+            for (int it = 0; it < ITERATION; it++) {
+                out.write(it + " " + gtDis_Locus[it][tid] + "\n");
+                out.flush();
+            }
+            out.close();
+            String fileName1 = resultFolder + "MSGTDistance_" + tid + ".txt";
+            BufferedWriter out1 = new BufferedWriter(new FileWriter(fileName1));
+            for (int it = 0; it < ITERATION; it++) {
+                out1.write(it + " " + msDist_Locus[it][tid] + "\n");
+                out1.flush();
+            }
+            out1.close();
+        }
+        //String g_resultFolder = RESULT_DIR + ITERATION + "/global/";
+        BufferedWriter bw2 = new BufferedWriter(new FileWriter(resultFolder + "GlobalBestST" + ".txt"));
+        bw2.write(GLOBALBESTST + "\n");
+        bw2.write("STATEGY : " + STRATEGY + "\n");
+
+        bw2.write("Best Likelihood value : " + String.valueOf(GLOBALBESTLL) + "\n");
+        bw2.write("Iteration number of best Likelihood value : " + String.valueOf(bestLLIter) + "\n");
+        bw2.write("Likelihood combined ratio : " + ll_Ratio + "\n");
+
+        bw2.write("Number of loci : " + lociNum + "\n");
+        bw2.write("Number of refine gene tree set :  " + refineGTSize + "\n");
+        bw2.write("Number of iteration :  " + ITERATION + "\n");
+        bw2.write("SeqLens :  " + _seqLens[0] + "\n");
+        bw2.write("Is real data :  " + ISREALDATA + "\n");
+        bw2.write("Is full likelihood  " + FULL_LL + "\n");
+        bw2.write("HalfTheta  " + halfTheta + "\n");
+
+        bw2.flush();
+        bw2.close();
+        String fileName = resultFolder + "GlobalBestTrees.txt";
+        BufferedWriter out = new BufferedWriter(new FileWriter(fileName));
+        out.write(GLOBALBESTST + "\n");
+        for (int tid = 0; tid < GLOBALBESTGTS.size(); tid++) {
+            String gt = GLOBALBESTGTS.get(tid);
+            out.write(gt + "\n");
+            out.flush();
+        }
+        out.close();
+        fileName = resultFolder + "RAxMLBestTrees.txt";
+        out = new BufferedWriter(new FileWriter(fileName));
+        for (int tid = 0; tid < locusBestGTS.size(); tid++) {
+            String gt = locusBestGTS.get(tid).toString();
+            out.write(gt + "\n");
+            out.flush();
+        }
+        out.close();
+        BufferedWriter ldOut = new BufferedWriter(new FileWriter(resultFolder + "distance.txt"));
+        //6.10 TODO multi-ST distance
+        double totalD = 0.0;
+        System.out.println("---------------------------Result-----------------------------");
+        System.out.println("Running time:" + String.valueOf(costtime));
+        System.out.println("Best Likelihood value : " + String.valueOf(GLOBALBESTLL));
+        System.out.println("Best #iteration : " + bestLLIter);
+        ldOut.write("AST init GT distance: " + astInit[1] + "\n");
+        ldOut.write("AST init ST distance: " + astInit[0] + "\n");
+
+
+        String stDistance = "RF of Best ST : " + operator.getDistance(Trees.readTree(GLOBALBESTST), Trees.readTree(trueST));
+        ldOut.write(stDistance + "\n");
+        System.out.println(stDistance);
+        stDistance = "Rooted RF of Best ST : " + operator.getRootDistance(Trees.readTree(GLOBALBESTST), Trees.readTree(trueST));
+        ldOut.write(stDistance + "\n");
+        System.out.println(stDistance);
+        String gtDistance = "RF of GT_";
+        double thisD = 0.0;
+        for (int k = 0; k < lociNum; k++) {
+            thisD = operator.getDistance(Trees.readTree(GLOBALBESTGTS.get(k)), Trees.readTree(trueGTS.get(k)));
+            ldOut.write(gtDistance + k + " :" + thisD + "\n");
+            totalD += thisD;
+        }
+        ldOut.write("Total distance of GTS is " + totalD + "\n");
+        ldOut.write("Average distance of GTS is " + totalD / trueGTS.size() + "\n");
+        System.out.println("Total distance of GTS is " + totalD + "\n");
+        System.out.println("Average distance of GTS is " + totalD / trueGTS.size() + "\n");
+
+        Network bestLocusST = inferSTByAST(locusBestGTS);
+        System.out.println( "RF of Best RAxML trees' ST : " + operator.getDistance(Trees.readTree(bestLocusST.toString()), Trees.readTree(trueST)));
+        ldOut.write("RF of Best RAxML trees' ST : " + operator.getDistance(Trees.readTree(bestLocusST.toString()), Trees.readTree(trueST))+ "\n");
+        System.out.println( "Rooted RF of Best RAxML trees' ST : " + operator.getRootDistance(Trees.readTree(bestLocusST.toString()), Trees.readTree(trueST)));
+        ldOut.write("Rooted RF of Best RAxML trees' ST : " + operator.getRootDistance(Trees.readTree(bestLocusST.toString()), Trees.readTree(trueST))+ "\n");
+
+        ldOut.write("Best RAxML trees' ST : " + bestLocusST.toString()+ "\n");
+
+        bestLocusST = inferSTByWAST(locusBestGTS);
+        ldOut.write("RF of Best Weighted RAxML trees' ST : " + operator.getDistance(Trees.readTree(bestLocusST.toString()), Trees.readTree(trueST)));
+        System.out.println( "RF of Best Weighted RAxML trees' ST : " + operator.getDistance(Trees.readTree(bestLocusST.toString()), Trees.readTree(trueST))+ "\n");
+        System.out.println( "Rooted RF of Best Weighted RAxML trees' ST : " + operator.getRootDistance(Trees.readTree(bestLocusST.toString()), Trees.readTree(trueST))+ "\n");
+        ldOut.write("Rooted RF of Best Weighted RAxML trees' ST : " + operator.getRootDistance(Trees.readTree(bestLocusST.toString()), Trees.readTree(trueST))+ "\n");
+
+        ldOut.write("Best Weighted RAxML trees' ST : " + bestLocusST.toString()+ "\n");
+
+        totalD = 0.0;
+        for (int k = 0; k < lociNum; k++) {
+            thisD = operator.getDistance(locusBestGTS.get(k), Trees.readTree(trueGTS.get(k)));
+            ldOut.write(gtDistance + k + " :" + thisD + "\n");
+            totalD += thisD;
+        }
+
+        ldOut.write("Total distance of RAxML best GTS is " + totalD + "\n");
+        ldOut.write("Average distance of RAxML best GTS is " + totalD / trueGTS.size() + "\n");
+        System.out.println("Total  distance of RAxML best GTS is " + totalD + "\n");
+        System.out.println("Average distance of RAxML best GTS is " + totalD / trueGTS.size() + "\n");
+
+
+        ldOut.write("---------------------------Global best ST change -----------------------------" + "\n");
+        for (int i = 0; i < bestSTD.size(); i++) {
+            ldOut.write(String.valueOf(bestITNum.get(i) + " : " + String.valueOf(bestSTD.get(i) + "  :  " + String.valueOf(bestSTLL.get(i)))) + "\n");
+        }
+
+        System.out.println("Average distance of GTS is " + totalD / trueGTS.size());
+        System.out.println("Best ST is " + GLOBALBESTST);
+        BufferedWriter gtD = new BufferedWriter(new FileWriter(resultFolder + "GTdistance.txt"));
+        for (int gtn = 0; gtn < ITERATION; gtn++) {
+            gtD.write(String.valueOf(gtn) + ":" + String.valueOf(gtDis[gtn]) + "\n");
+            //TODO 8-10
+        }
+        gtD.flush();
+        gtD.close();
+        ldOut.flush();
+        ldOut.close();
+        BufferedWriter stD = new BufferedWriter(new FileWriter(resultFolder + "STdistance.txt"));
+        for (int stn = 0; stn < ITERATION; stn++) {
+            stD.write(String.valueOf(stn) + ":" + String.valueOf(stDis[stn]) + "\n");
+        }
+        stD.flush();
+        //stD.close();
+        stD = new BufferedWriter(new FileWriter(resultFolder + "STRootedDistance.txt"));
+        for (int stn = 0; stn < ITERATION; stn++) {
+            stD.write(String.valueOf(stn) + ":" + String.valueOf(stRootedDis[stn]) + "\n");
+        }
+        stD.flush();
+        stD.close();
+        BufferedWriter itLL = new BufferedWriter(new FileWriter(resultFolder + "STCurrentLL.txt"));
+        for (int stn = 0; stn < ITERATION; stn++) {
+            itLL.write(String.valueOf(stn) + " " + String.valueOf(currentITLL[stn]) + "\n");
+        }
+
+        itLL.flush();
+        itLL.close();
+
+        llOut = new BufferedWriter(new FileWriter(resultFolder + "LL_Analysis.txt"));
+        for (int k = 0; k < ITERATION; k++) {
+            llOut.write(k + " " + String.valueOf(gtsHLL[k]) + "\n");
+        }
+        llOut.write("Half AVE: " + operator.getAverage(gtsHLL) + "\n");
+        llOut.write("Half SD: " + operator.getStandardDevition(gtsHLL) + "\n");
+
+        llOut.write("Full AVE: " + operator.getAverage(gtsLL) + "\n");
+        llOut.write("Full SD: " + operator.getStandardDevition(gtsLL) + "\n");
+        llOut.write("Current AVE: " + operator.getAverage(currentITLL) + "\n");
+        llOut.write("Current SD: " + operator.getStandardDevition(currentITLL) + "\n");
+        llOut.flush();
+        llOut.close();
+
+
+        return finalGTS;
+    }
+
+    //  Input:  tempBestST
+    //  Output: current best GTS
+    public Network<NetNodeInfo> refineGeneSet(Network<NetNodeInfo> tempST) throws ParseException, IOException {
+        List<Tree> currentTopo = simulator.simulateGeneTrees(tempST, null, refineGTSize); //operator.MS
+
+        List<Tree> msTopos = currentTopo;
+                // operator.getDistinguishedTopo(currentTopo);
+        operator.getMSDist(trueTopos, msTopos,msDist_Locus, itNum);
+        List<Double> msTopoLL = operator.getGTSLLBySTYF(msTopos, tempST);
+
+        //TODO: involve p(gt|st)
+        List<Tree> rGTS = getBestGTSByR(msTopos, tempST, msTopoLL);
+        boolean move = false;
+        currentITLL[itNum] = currentLL;
+        double stDistance = 0.0;
+        double gtDistance = 0.0;
+        if (currentLL >= GLOBALBESTLL) {
+            move = true;
+            maxLL = currentLL;
+            bestLLIter = itNum;
+            GLOBALBESTST = tempST.toString();
+            bestSTLL.add(currentLL);
+            GLOBALBESTLL = currentLL;
+            stDistance = operator.getDistance(Trees.readTree(GLOBALBESTST), Trees.readTree(trueST));
+            bestSTD.add(stDistance);
+            bestITNum.add(itNum);
+            Iterator it = rGTS.iterator();
+            GLOBALBESTGTS = new ArrayList<String>();
+            while (it.hasNext()) {
+                GLOBALBESTGTS.add(it.next().toString());
+            }
+            System.out.println("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ GLOBALBEST ST change");
+            System.out.println("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ ST distance : " + stDistance);
+        }
+        if (STRATEGY == "NONE") {
+            move = true;
+        } else if (STRATEGY == "IMPROVE") {
+
+        } else if (STRATEGY == "RANDOM") {
+            if (currentLL >= maxLL) {
+
+            } else {
+                double random = Math.random();
+                if (random < 0.98)
+                    move = false;
+                else {
+                    System.out.println("--------Random-Accept: #Iteration " + itNum + " : " + currentLL);
+                    move = true;
+                }
+            }
+        }
+        if (move == true) {
+            tempST = inferSTByAST(rGTS);
+            maxLL = currentLL;
+            stDis[itNum] = operator.getDistance(Trees.readTree(tempST.toString()), Trees.readTree(trueST));
+            System.out.println("ST Distance of # " + itNum + " is : " + stDis[itNum]);
+            stRootedDis[itNum] = operator.getRootDistance(Trees.readTree(tempST.toString()), Trees.readTree(trueST));
+            System.out.println("Rooted ST Distance of # " + itNum + " is : " + stRootedDis[itNum]);
+            double thisD = 0.0;
+            for (int k = 0; k < lociNum; k++) {
+                double temp = operator.getDistance(rGTS.get(k), Trees.readTree(trueGTS.get(k)));
+                gtDis_Locus[itNum][k] = temp;
+                thisD += temp;
+            }
+            gtDis[itNum] = thisD / lociNum;
+            System.out.println("GTS Distance of # " + itNum + " is : " + gtDis[itNum]);
+            System.out.println("**********Accept ST  ");
+            gtsLL[itNum] = currentLL;
+            gtsHLL[itNum] = currentHLL;
+
+        } else {
+            System.out.println("----------Reject MS GTS  ");
+            gtsLL[itNum] = gtsLL[itNum - 1];
+            gtsHLL[itNum] = gtsHLL[itNum - 1];
+            stDis[itNum] = stDis[itNum - 1];
+            stRootedDis[itNum] = stRootedDis[itNum - 1];
+            System.out.println("ST Distance of # " + itNum + " is : " + stDis[itNum]);
+            System.out.println("Rooted ST Distance of # " + itNum + " is : " + stRootedDis[itNum]);
+
+            gtDis[itNum] = gtDis[itNum - 1];
+            System.out.println("GTS Distance of # " + itNum + " is : " + gtDis[itNum]);
+
+            for (int k = 0; k < lociNum; k++) {
+                gtDis_Locus[itNum][k] = gtDis_Locus[itNum - 1][k];
+            }
+        }
+        System.out.println("Current combined ll : " + currentLL);
+        System.out.println("Full ll : " + gtsLL[itNum] + " ||| " + "Half ll : " + gtsHLL[itNum] + " ||| " + "Current best ll : " + GLOBALBESTLL);
+        return tempST;
+    }
+
+
+    //Input: msTopos, ST, msTopoLL
+    //Output: current GTS_nu no external, current LL
+    public List<Tree> getBestGTSByR(List<Tree> topos, Network<NetNodeInfo> tempST, List<Double> msTopoLL) throws IOException {
+        iterLLSeq = new double[msTopoLL.size()];
+        iterLLST = new double[msTopoLL.size()];
+        currentHLL = 0.0;
+        currentLL = 0.0;
+        List<Tree> bestGTs = new ArrayList<Tree>(); // scaled RAxML trees
+        List<Double> bestGTLL = new ArrayList<Double>();
+        List<Integer> bestGTNum = new ArrayList<Integer>();
+
+        operator.updateMSTopos(topos);
+        operator.runUpdateShell(refineGTSize, lociNum);
+        for (int i = 0; i < lociNum; i++) {
+            double[] llList = operator.getLocusLL(i, refineGTSize);
+
+            double bestLL = llList[0] + ll_Ratio * msTopoLL.get(0);
+            int bestGTNumi = 0;
+            for (int j = 0; j < llList.length; j++) {
+                if(llList[j]>locusGTLL[i]){
+                    locusGTLL[i] = llList[j];
+                    locusBestGTS.set(i,operator.getbestGTi(i, j));
+                }
+
+                double tempLL = llList[j] + ll_Ratio * msTopoLL.get(j);
+                if (bestLL < tempLL) {
+                    bestLL = tempLL;
+                    bestGTNumi = j;
+                }
+            }
+            bestGTs.add(operator.scaleGT(operator.getbestGTi(i, bestGTNumi), halfTheta, false));
+            bestGTLL.add(bestLL);
+            //TODO: get P(gt_j|st)
+            currentLL += bestLL;
+            bestGTNum.add(bestGTNumi);
+            iterLLST[i] = msTopoLL.get(bestGTNumi);
+            iterLLSeq[i] = llList[bestGTNumi];
+            currentHLL += llList[bestGTNumi];
+            //currentLL += bestLL;
+        }
+        return bestGTs;
+    }
+
+
+    // Use UPGMA + GLASS + AST
+    // Input: Alignments
+    // Output: AST ST + GLASS tree
+    // GTS with BL: mutations/site
+    public Network<NetNodeInfo> initST(List<Alignment> aln) throws IOException, ParseException, InterruptedException {
+
+        //List<Tree> tempOGTs = operator.initByRAxML(aln, _seqLens[0],taxaNum+1, lociNum);
+        List<UltrametricTree> uGTS = operator.simGTSByUPGMA(aln);
+
+        operator.scaleGTS(uGTS, halfTheta, true);
+        List<Tree> trees = operator.getTreeByUTree(uGTS);
+        for(int i = 0; i<lociNum; i++){
+            locusBestGTS.add(trees.get(i));
+        }
+        Constraint_ST = operator.inferSTByGLASS(trees);
+
+        Network ast = inferSTByAST(trees);
+        BufferedWriter astOut = new BufferedWriter(new FileWriter(RESULT_DIR + ITERATION + "/" + taxaNum + "_" + lociNum + "/" + refineGTSize + "/INITdistance.txt"));
+        astOut.write("@@@@@ GLASS Tree distance: " + operator.getDistance(Constraint_ST, Trees.readTree(trueST)) + "\n");
+        System.out.println("@@@@@AST distance(rooted): " + operator.getRootDistance(Trees.readTree(ast.toString()), Trees.readTree(trueST)));
+        System.out.println("@@@@@AST distance(unrooted): " + operator.getDistance(Trees.readTree(ast.toString()), Trees.readTree(trueST)));
+        astOut.write("@@@@@AST distance(rooted): " + operator.getRootDistance(Trees.readTree(ast.toString()), Trees.readTree(trueST)) + "\n");
+        astOut.write("@@@@@AST distance(unrooted): " + operator.getDistance(Trees.readTree(ast.toString()), Trees.readTree(trueST)) + "\n");
+        ast = inferSTByWAST(trees);
+        INIT_ST = ast;
+        System.out.println("@@@@@WAST distance(rooted): " + operator.getRootDistance(Trees.readTree(ast.toString()), Trees.readTree(trueST)));
+        System.out.println("@@@@@WAST distance(unrooted): " + operator.getDistance(Trees.readTree(ast.toString()), Trees.readTree(trueST)));
+
+        astOut.flush();
+        astOut.close();
+        List<Double> gtsllList = operator.getGTSLLBySTYF(trees, Networks.readNetwork(Constraint_ST.toString()));
+        currentHLL = Double.NEGATIVE_INFINITY;
+        currentLL = 0.0;
+
+        for (int i = 0; i < gtsllList.size(); i++) {
+            currentLL += gtsllList.get(i);
+            System.out.println("currentGTLL : " + gtsllList.get(i));
+
+        }
+        System.out.println("currentLL : " + currentLL);
+        GLOBALBESTLL = Double.NEGATIVE_INFINITY;
+        maxLL = Double.NEGATIVE_INFINITY;
+
+        gtsHLL[0] = Double.NEGATIVE_INFINITY;
+        gtsLL[0] = currentLL;
+        GLOBALBESTST = INIT_ST.toString();
+        // trueST = operator.rerootAndRemove(trueST,"O");
+        stDis[0] = operator.getDistance(Trees.readTree(GLOBALBESTST), Trees.readTree(trueST));
+        stRootedDis[0] = operator.getRootDistance(Trees.readTree(GLOBALBESTST), Trees.readTree(trueST));
+
+        double thisD = 0.0;
+        //finalGTS = tempGTs;
+        for (int k = 0; k < lociNum; k++) {
+            //trueGTS.set(k,operator.rerootAndRemove(trueGTS.get(k),"O"));
+            double d = operator.getDistance((Tree) trees.get(k), Trees.readTree(trueGTS.get(k)));
+            System.out.println("# " + k + " : " + d);
+            gtDis_Locus[0][k] = d;
+            msDist_Locus[0][k] = 0;
+            thisD += d;
+        }
+        gtDis[0] = thisD / lociNum;
+        return INIT_ST;
+    }
+
+
+    //input: rooted gts with OG
+    //output: rooted ST without OG
+    public BniNetwork<NetNodeInfo> inferSTByAST(List<Tree> gts) throws IOException, ParseException {
+        String command = "java -jar " + _ASTRALdir + "astral.4.11.1.jar -i /Users/doriswang/PhyloNet/tools/Astral/test_data/tempIn.tre -o /Users/doriswang/PhyloNet/tools/Astral/test_data/testOut.tre";
+        String cmdFile = _ASTRALdir + "tempCMD.sh";
+        BufferedWriter cmd = new BufferedWriter(new FileWriter(cmdFile));
+        cmd.write(command + '\n');
+        cmd.flush();
+        cmd.close();
+        String inputFile = _ASTRALdir + "test_data/tempIn.tre";
+        BufferedWriter in = new BufferedWriter(new FileWriter(inputFile));
+        Tree temp = gts.get(0);
+
+        //TODO: add weight
+        for (int i = 0; i < gts.size(); i++) {
+                in.write(gts.get(i).toString() + "\n");
+        }
+        in.flush();
+        in.close();
+        ProcessBuilder pb = new ProcessBuilder("/bin/bash", cmdFile);
+        pb.redirectErrorStream(true);
+        try {
+            Process proc = pb.start();
+            try {
+                proc.waitFor();
+            } catch (InterruptedException ex) {
+                System.out.println(ex.getMessage());
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        String outputFile = _ASTRALdir + "test_data/testOut.tre";
+        BufferedReader out = new BufferedReader(new FileReader(outputFile));
+        String stString = out.readLine().trim();
+        int index0 = 0;
+        int index1 = 1;
+        List<Integer> indexes = new ArrayList<Integer>();
+        for (int i = 1; i < stString.length(); i++) {
+            if (stString.charAt(index1) == ':') {
+                indexes.add(i);
+            }
+            index1++;
+        }
+        for (int i = 1; i <= indexes.size(); i++) {
+            index1 = indexes.get(indexes.size() - i);
+            for (int j = 1; j < stString.length(); j++) {
+                index0 = index1 - j;
+                if (stString.charAt(index0) == ')') {
+                    break;
+                } else
+                    index0--;
+            }
+            String newST = stString.substring(0, index0 + 1) + "I" + Integer.toString(i - 1) + stString.substring(index1);
+            stString = newST;
+        }
+        System.out.println("AST String :" + stString);
+        Tree st0 = Trees.readTree(stString);
+        st0 = addExternal(st0, Constraint_ST);
+        st0 = rootST(st0);
+        BniNetwork n = (BniNetwork) Networks.readNetwork(st0.toString());
+        return n;
+    }
+
+    //input: rooted gts with OG
+    //output: rooted ST without OG
+    public String initAST(List<Tree> gts) throws IOException, ParseException {
+        String command = "java -jar " + _ASTRALdir + "astral.4.11.1.jar -i /Users/doriswang/PhyloNet/tools/Astral/test_data/tempIn.tre -o /Users/doriswang/PhyloNet/tools/Astral/test_data/testOut.tre";
+        String cmdFile = _ASTRALdir + "tempCMD.sh";
+        BufferedWriter cmd = new BufferedWriter(new FileWriter(cmdFile));
+        cmd.write(command + '\n');
+        cmd.flush();
+        cmd.close();
+        String inputFile = _ASTRALdir + "test_data/tempIn.tre";
+        BufferedWriter in = new BufferedWriter(new FileWriter(inputFile));
+        Tree temp = gts.get(0);
+
+        //TODO: add weight
+        for (int i = 0; i < gts.size(); i++) {
+            in.write(gts.get(i).toString() + "\n");
+        }
+        in.flush();
+        in.close();
+        ProcessBuilder pb = new ProcessBuilder("/bin/bash", cmdFile);
+        pb.redirectErrorStream(true);
+        try {
+            Process proc = pb.start();
+            try {
+                proc.waitFor();
+            } catch (InterruptedException ex) {
+                System.out.println(ex.getMessage());
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        String outputFile = _ASTRALdir + "test_data/testOut.tre";
+        BufferedReader out = new BufferedReader(new FileReader(outputFile));
+        String stString = out.readLine().trim();
+        int index0 = 0;
+        int index1 = 1;
+        List<Integer> indexes = new ArrayList<Integer>();
+        for (int i = 1; i < stString.length(); i++) {
+            if (stString.charAt(index1) == ':') {
+                indexes.add(i);
+            }
+            index1++;
+        }
+        for (int i = 1; i <= indexes.size(); i++) {
+            index1 = indexes.get(indexes.size() - i);
+            for (int j = 1; j < stString.length(); j++) {
+                index0 = index1 - j;
+                if (stString.charAt(index0) == ')') {
+                    break;
+                } else
+                    index0--;
+            }
+            String newST = stString.substring(0, index0 + 1) + "I" + Integer.toString(i - 1) + stString.substring(index1);
+            stString = newST;
+        }
+        System.out.println("AST String :" + stString);
+
+        return stString;
+    }
+
+    //input: rooted gts with OG
+    //output: rooted ST without OG
+    public BniNetwork<NetNodeInfo> inferSTByWAST(List<Tree> gts) throws IOException, ParseException {
+        String command = "java -jar " + _ASTRALdir + "astral.4.11.1.jar -i /Users/doriswang/PhyloNet/tools/Astral/test_data/tempIn.tre -o /Users/doriswang/PhyloNet/tools/Astral/test_data/testOut.tre";
+        String cmdFile = _ASTRALdir + "tempCMD.sh";
+        BufferedWriter cmd = new BufferedWriter(new FileWriter(cmdFile));
+        cmd.write(command + '\n');
+        cmd.flush();
+        cmd.close();
+        String inputFile = _ASTRALdir + "test_data/tempIn.tre";
+        BufferedWriter in = new BufferedWriter(new FileWriter(inputFile));
+        Tree temp = gts.get(0);
+
+        //TODO: add weight
+        for (int i = 0; i < gts.size(); i++) {
+            for(int j = (int)weights[i];j>0;j--){
+                in.write(gts.get(i).toString() + "\n");
+
+            }
+        }
+        in.flush();
+        in.close();
+        ProcessBuilder pb = new ProcessBuilder("/bin/bash", cmdFile);
+        pb.redirectErrorStream(true);
+        try {
+            Process proc = pb.start();
+            try {
+                proc.waitFor();
+            } catch (InterruptedException ex) {
+                System.out.println(ex.getMessage());
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        String outputFile = _ASTRALdir + "test_data/testOut.tre";
+        BufferedReader out = new BufferedReader(new FileReader(outputFile));
+        String stString = out.readLine().trim();
+        int index0 = 0;
+        int index1 = 1;
+        List<Integer> indexes = new ArrayList<Integer>();
+        for (int i = 1; i < stString.length(); i++) {
+            if (stString.charAt(index1) == ':') {
+                indexes.add(i);
+            }
+            index1++;
+        }
+        for (int i = 1; i <= indexes.size(); i++) {
+            index1 = indexes.get(indexes.size() - i);
+            for (int j = 1; j < stString.length(); j++) {
+                index0 = index1 - j;
+                if (stString.charAt(index0) == ')') {
+                    break;
+                } else
+                    index0--;
+            }
+            String newST = stString.substring(0, index0 + 1) + "I" + Integer.toString(i - 1) + stString.substring(index1);
+            stString = newST;
+        }
+        System.out.println("AST String :" + stString);
+        Tree st0 = Trees.readTree(stString);
+        st0 = addExternal(st0, Constraint_ST);
+        st0 = rootST(st0);
+        BniNetwork n = (BniNetwork) Networks.readNetwork(st0.toString());
+        return n;
+    }
+
+
+    //TODO
+    //  Input: AST tree, glass tree
+    //  Output: unrooted ST with external branches
+    public Tree addExternal(Tree st0, Tree glassTree) throws IOException, ParseException {
+        Network st = Networks.readNetwork(st0.toNewick());
+        List<Tree> glassT = new ArrayList<Tree>();
+        glassT.add(glassTree);
+        Network newST = optimizeBL(glassT, st, 0.0001);
+        st0 = Trees.readTree(newST.toString());
+        return st0;
+    }
+
+    //  for all branches in st, if length = 0 -> length = ogHeight/10000
+    //  if gts are ultrametric, add glassTree to bound ST
+    public Network<NetNodeInfo> optimizeBL(List<Tree> gtsOG, Network st, Double ogHeight) {
+
+        Map<Integer, List<String>> map = (Map<Integer, List<String>>) operator.getLevels(st);
+        Set keys = map.keySet();
+        int[] key = new int[keys.size()];
+        Iterator keyIt = keys.iterator();
+        for (int i = 0; i < keys.size(); i++) {
+            key[i] = (int) keyIt.next();
+        }
+        int temp = 0;
+        //bubble sort
+        for (int i = 0; i < key.length - 1; i++) {
+            for (int j = 0; j < key.length - 1; j++) {
+                if (key[j] < key[j + 1]) {
+                    temp = key[j];
+                    key[j] = key[j + 1];
+                    key[j + 1] = temp;
+                }
+            }
+        }
+
+        HashMap<String, Double> height = new HashMap<String, Double>();
+        for (int i = 0; i < keys.size(); i++) {
+            List<String> nodes = map.get(key[i]);
+
+            Iterator<String> nodeIt = nodes.iterator();
+            while (nodeIt.hasNext()) {
+                BniNetNode tempNode = (BniNetNode) st.findNode(nodeIt.next());
+                BniNetNode p = (BniNetNode) tempNode.getParents().iterator().next();
+                if (tempNode.getParentDistance(p) != Double.NEGATIVE_INFINITY)
+                    continue;
+                    //never checked
+                else {
+                    Iterator cIt = p.getChildren().iterator();
+                    BniNetNode sib = (BniNetNode) cIt.next();
+                    if (sib.getName() == tempNode.getName())
+                        sib = (BniNetNode) cIt.next();
+                    // sib is leaf
+                    if (sib.isLeaf() == true) {
+                        double distance = Double.POSITIVE_INFINITY;
+                        distance = getDist(tempNode.getName(), sib.getName(), gtsOG, st);
+                        if (distance == 0 || distance == Double.POSITIVE_INFINITY) {
+                            distance = ogHeight;
+                        }
+                        tempNode.setParentDistance(p, distance / 2);
+                        sib.setParentDistance(p, distance / 2);
+                        height.put(p.getName(), distance / 2);
+
+                    }
+                    //sib is non-leaf
+                    else {
+                        // lowerDist
+                        if (sib.getParentDistance(p) == 0 || sib.getParentDistance(p) == Double.NEGATIVE_INFINITY)
+                            //TODO
+                            sib.setParentDistance(p, ogHeight / 100);
+                        if (height.containsKey(sib.getName())) {
+                            tempNode.setParentDistance(p, height.get(sib.getName()) + sib.getParentDistance(p));
+                            height.put(p.getName(), height.get(sib.getName()) + sib.getParentDistance(p));
+                        } else {
+                            Double sibHeight = operator.getInternalHeight(sib, st, height);
+                            height.put(sib.getName(), sibHeight);
+                            //getDist(((BniNetNode) children.next()).getName(), ((BniNetNode) children.next()).getName(), gts, st);
+                            double distance = sibHeight + sib.getParentDistance(p);
+                            tempNode.setParentDistance(p, distance);
+                            height.put(p.getName(), distance);
+                        }
+                    }
+                }
+            }
+        }
+        return st;
+    }
+
+    //output: the shortest distance in all gts.
+    public double getDist(String nodeName1, String nodeName2, List<Tree> gts, Network st) {
+        double distance = Double.POSITIVE_INFINITY;
+
+        // getDist(nonChecked leafnode1, leafnode 2 ...)
+        for (int i = 0; i < gts.size(); i++) {
+            Tree gt = gts.get(i);
+            Trees.autoLabelNodes((MutableTree) gt);
+            TNode n1 = gt.getNode(nodeName1);
+            TNode n2 = gt.getNode(nodeName2);
+            TNode root = gt.getRoot();
+            TNode lcp = operator.getLCP(root, n1, n2);
+            if (lcp.isLeaf())
+                System.err.println("Wrong LCP!!");
+            //System.out.println(n1.getName()+" + " + n2.getName()+" -> "  + lcp.getName());
+            double temp = operator.getLocalDist(n1, n2, lcp, gt);
+            if (temp < distance)
+                distance = temp;
+        }
+        if (distance == Double.POSITIVE_INFINITY)
+            System.err.println("Wrong Distance!!" + nodeName1 + " + " + nodeName2);
+
+        return distance;
+    }
+
+
+    //TODO
+    //  Input: unrooted AST tree with external branches
+    //  Output: rooted & ultrametric ST
+    public Tree rootST(Tree st0) throws IOException, ParseException {
+        //get tree height
+        STITree rootT = (STITree) st0;
+        Trees.autoLabelNodes(rootT);
+        TNode root = rootT.getRoot();
+        Iterator subT = root.getChildren().iterator();
+        TNode left = (TNode) subT.next();
+        TNode right = (TNode) subT.next();
+        String[] leftStr = getNodeHeight(left);
+        String[] rightStr = getNodeHeight(right);
+        double h1 = Double.valueOf(leftStr[1]);
+        double h2 = Double.valueOf(rightStr[1]);
+        Double treeHeight = ( h1 + h2 )/2;
+        String start = (h1 > h2)? leftStr[0]: rightStr[0];
+        TNode sNode = rootT.getNode(start);
+
+        //find root edge
+        double dist = 0.0;
+        STINode newRoot = (STINode) sNode;// new root
+        TNode fRoot = sNode;// root edge finish node
+        while(true){
+            dist += sNode.getParentDistance();
+            if(dist >= treeHeight){
+                //no change node
+                if(dist == treeHeight){
+                    newRoot = (STINode)sNode.getParent();
+                    rootT.rerootTreeAtNode(newRoot);
+                }
+                else if(dist > treeHeight) {
+                    double diff = dist - treeHeight;
+                    double edgeLength = sNode.getParentDistance();
+                    BniNetwork net = (BniNetwork) Networks.readNetwork(rootT.toString());
+                    BniNetNode newNetRoot = new BniNetNode("I" + String.valueOf(rootT.getNodeCount()),0.0);
+                    BniNetNode oldP = (BniNetNode)net.findNode(sNode.getParent().getName());
+                    oldP.adoptChild(newNetRoot,diff);
+                    newNetRoot.adoptChild((BniNetNode)net.findNode(sNode.getName()),edgeLength-diff);
+                    oldP.removeChild(net.findNode(sNode.getName()));
+
+                    BniNetNode oldNetRoot = (BniNetNode)net.getRoot();
+                    BniNetNode tempC = newNetRoot;
+                    BniNetNode tempP = oldP;
+                    while(!tempC.equals(oldNetRoot)){
+                        double tempD = tempC.getParentDistance(tempP);
+                        tempP.removeChild(tempC);
+                        tempC.adoptChild(tempP,tempD);
+                        tempC = tempP;
+                        tempP = (BniNetNode) tempC.getParents().iterator().next();
+                    }
+                    BniNetNode fChild = (BniNetNode) tempC.getChildren().iterator().next();
+                    tempP.removeChild(tempC);
+                    tempP.adoptChild(fChild,fChild.getParentDistance(tempC));
+                    tempC.removeChild(fChild);
+                    net.resetRoot(newNetRoot);
+                    rootT = (STITree) Trees.readTree(net.toString());
+                }
+                break;
+            }
+            else{
+                sNode = sNode.getParent();
+            }
+        }
+        Tree result = operator.getUTree(rootT,0.0);
+        return result;
+    }
+//TODO keep best gts P(seq|GT)
+
+
+    //Input: Node name
+    //Output: String[2]   0:leaf name  1： leaf distance
+    public String[] getNodeHeight(TNode temp) {
+        if (temp.isLeaf()){
+            String[] str = new String[2];
+            str[0] = temp.getName();
+            str[1] = String.valueOf(0.0);
+            return str;
+        }
+        else {
+            String[] tempStr1;
+            String[] tempStr2;
+            String[] tempResult = new String[2];
+            Iterator it = temp.getChildren().iterator();
+            TNode left = (TNode) it.next();
+            tempStr1 = getNodeHeight(left);
+            double leftD = Double.valueOf(tempStr1[1]) + left.getParentDistance();
+            TNode right = (TNode) it.next();
+            tempStr2 = getNodeHeight(right);
+            double rightD = Double.valueOf(tempStr2[1]) + right.getParentDistance();
+            if(leftD>rightD){
+                tempResult[0] = tempStr1[0];
+                tempResult[1] = String.valueOf(leftD);
+            }
+            else{
+                tempResult[0] = tempStr2[0];
+                tempResult[1] = String.valueOf(rightD);
+            }
+            return tempResult;
+        }
+    }
+
+
+
+}

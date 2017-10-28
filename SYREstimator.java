@@ -198,14 +198,6 @@ public class SYREstimator {
 //                    phy.close();
 //                }
             }
-        } else {
-            List<String> trees = simulator.simulateData();
-            trueST = trees.get(0);
-            trueGTS = trees.subList(1, trees.size());
-            for (int i = 0; i < lociNum; i++) {
-                Alignment aln = operator.loadLocus(i, _seqLens[0], taxaNum);
-                trueSeq.add(aln);
-            }
         }
     }
 

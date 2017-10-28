@@ -8,6 +8,7 @@ import edu.rice.cs.bioinfo.programs.phylonet.algos.MCMCseq.util.TemporalConstrai
 import edu.rice.cs.bioinfo.programs.phylonet.algos.MCMCseq.util.Utils;
 import edu.rice.cs.bioinfo.programs.phylonet.algos.SymmetricDifference;
 import edu.rice.cs.bioinfo.programs.phylonet.algos.coalescent.GLASSInference;
+import edu.rice.cs.bioinfo.programs.phylonet.algos.network.GeneTreeWithBranchLengthProbabilityYF;
 import edu.rice.cs.bioinfo.programs.phylonet.algos.simulator.SimGTInNetworkByMS;
 import edu.rice.cs.bioinfo.programs.phylonet.structs.network.NetNode;
 import edu.rice.cs.bioinfo.programs.phylonet.structs.network.model.bni.BniNetNode;
@@ -43,6 +44,7 @@ public class InferOperator {
     protected static String _RAxMLdir = "/Users/doriswang/PhyloNet/tools/standard-RAxML-master/";
     private static String TREE_DIR = "/Users/doriswang/PhyloNet/Data/IIG/tree/";
     private static String SEQ_DIR = "/Users/doriswang/PhyloNet/Data/IIG/seq/";
+    private static String _fastTree = "/Users/doriswang/PhyloNet/tools/FT/";
     private static int iteration;
 
     InferOperator(int it) {
@@ -220,10 +222,10 @@ public class InferOperator {
         return locusLen;
     }
 
-    public Alignment loadLocus(int seqNum, int seqLength, int taxaNum) throws IOException {
+    public Alignment loadLocus(int seqNum, int seqLength, int taxaNum, String inputFile) throws IOException, InterruptedException {
         //"seq_" + tid + "_" + seqLen +".nex";scale + "/seq_" + i + "_" + len + ".nex"
         Map<String, String> locus = new HashMap<String, String>();
-        String inputFile = "/Users/doriswang/PhyloNet/Data/IIG/symmetrical/200/seq_" + seqNum + "_" + seqLength + ".nex";
+        inputFile = inputFile + "seq_" + seqNum + "_" + seqLength + ".nex";
         BufferedReader br = new BufferedReader(new FileReader(inputFile));
         String line = "";
         int j = 1;
@@ -244,7 +246,7 @@ public class InferOperator {
             //locus.remove("O");
         }
         Alignment aln = new Alignment(locus);
-
+        isExitsPath(_RAxMLdir + seqNum );
         BufferedWriter phy = new BufferedWriter(new FileWriter(_RAxMLdir + seqNum + "/dna.phy"));
         phy.write(taxaNum + " " + seqLength + '\n');
         phy.flush();
@@ -690,9 +692,7 @@ public class InferOperator {
 
     public List<UltrametricTree> simGTSByUPGMA(List<Alignment> trueAlns) throws IOException {
         List<UltrametricTree> geneTrees = new ArrayList<UltrametricTree>();
-        ArrayList<File> seqFile = getListFiles(SEQ_DIR + iteration + "/");
         for (int i = 0; i < trueAlns.size(); i++) {
-            //Alignment aln = loadAlnSQ(seqFile.get(i).getName(), seqLength, 16);
             geneTrees.addAll(simGTByUPGMA((Alignment) trueAlns.get(i)));
         }
         return geneTrees;
@@ -712,6 +712,20 @@ public class InferOperator {
             sum += array[i];
         }
         return (double)(sum / array.length);
+    }
+
+    // P(gt|ST)
+    //if not return -> add st height on all leaves
+    public List<Double> getGTSLLBySTYF(List<Tree> geneTrees, Network<NetNodeInfo> currentST) {
+        List<Double> gProST = new ArrayList<>();
+        double[] result = new double[geneTrees.size()];
+        Network<NetNodeInfo> ultraST = getUltraST(currentST.toString());
+        GeneTreeWithBranchLengthProbabilityYF g = new GeneTreeWithBranchLengthProbabilityYF(ultraST, geneTrees, null);
+        g.calculateGTDistribution(result);
+        for (int i = 0; i < result.length; i++)
+            gProST.add(Math.log(result[i]));
+
+        return gProST;
     }
 
     //
@@ -860,19 +874,6 @@ public class InferOperator {
         for (int i = 0; i < lociNum; i++) {
             System.out.println("RAXML No" + i + "Start...");
             isExitsPath(_RAxMLdir + i);
-//            BufferedWriter phy = new BufferedWriter(new FileWriter(_RAxMLdir + i + "/dna.phy"));
-//            phy.write(taxaNum + " " + seqLen + '\n');
-//            phy.flush();
-//            Alignment a = aln.get(i);
-//            List<String> names = a.getTaxaNames();
-//            Map<String, String> thisAln = a.getAlignment();
-//            for (int j = 0; j < taxaNum; j++) {
-//                String name = names.get(j);
-//                String seq = thisAln.get(name);
-//                phy.write(name + '\t' + seq + '\n');
-//            }
-//            phy.flush();
-//            phy.close();
             String rm = "rm *.T" + i + '\n';
             //./raxmlHPC-PTHREADS -M -m GTRGAMMA -p 12345 -# 10 -s 0/dna.phy -n T0
             String raxml = _RAxMLdir + "raxmlHPC-PTHREADS -M -m GTRGAMMA -p 12345 -# 30 " + "-s " + i + "/dna.phy -n T" + i;
@@ -907,7 +908,87 @@ public class InferOperator {
         }
         return gts;
     }
+//FastTree -gtr -nt < alignment.file > tree_file
+    public List<Tree> initFasttree(List<Alignment> aln, int[] seqLen, int lociNum) throws IOException, ParseException, InterruptedException {
+        //writeSeq + partition     rm + raxml    read in
+        List<Tree> gts = new ArrayList<Tree>();
+        for (int i = 0; i < lociNum; i++) {
+            //System.out.println("No" + i + "Start...");
+            BufferedWriter bw = new BufferedWriter(new FileWriter(_fastTree + i + ".phy"));
+            Alignment temp = aln.get(i);
+            Map<String, String> thisAln = temp.getAlignment();
+            int taxaNum = temp.getTaxonSize();
+            bw.write(taxaNum + " " + seqLen[i] + '\n');
+            for (int j = 0; j < taxaNum; j++) {
+                String name = temp.getTaxaNames().get(j);
+                String seq = thisAln.get(name);
+                bw.write(name + ' ' + seq + '\n');
+            }
+            bw.flush();
+            bw.close();
+            isExitsPath(_fastTree + i);
+            String rm = "rm *.T" + i + '\n';
+            //./raxmlHPC-PTHREADS -M -m GTRGAMMA -p 12345 -# 10 -s 0/dna.phy -n T0
+            String command = _fastTree + "FastTree -gtr -nt < " + i + ".phy > " + i + ".T";
+            String cmdFile = _fastTree + "FastTree" + i + ".sh";
+            BufferedWriter cmd = new BufferedWriter(new FileWriter(cmdFile));
+            cmd.write("cd " + _fastTree.substring(0, _fastTree.length() - 1) + '\n');
+            cmd.write(rm);
+            cmd.flush();
+            cmd.write(command);
+            cmd.flush();
+            cmd.close();
 
+            ProcessBuilder pb = new ProcessBuilder("/bin/bash", cmdFile);
+            pb.redirectErrorStream(true);
+            try {
+                Process proc = pb.start();
+                try {
+                    proc.waitFor();
+                } catch (InterruptedException ex) {
+                    System.out.println(ex.getMessage());
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+        for (int i = 0; i < lociNum; i++) {
+            String outputFile = _fastTree + i + ".T";
+            BufferedReader out = new BufferedReader(new FileReader(outputFile));
+            //String gtString = gtReader.readLine().trim();
+            String stString = out.readLine().trim();
+            int index0 = 0;
+            int index1 = 1;
+            for(int j = 1; j< stString.length()-1;j++){
+                if(stString.charAt(j)!=')'){
+                    continue;
+                }
+                else if(stString.charAt(j+1)==':'){
+                    continue;
+                }
+                else{
+                    int offset = 1;
+                    boolean find = false;
+                    for(offset=1;offset<stString.length()-j;offset++){
+                        if(stString.charAt(offset+j)==':') {
+
+                            find = true;
+                            break;
+                        }
+                        else
+                            continue;
+                    }
+                    if(find){
+                        stString = stString.substring(0,j+1) + stString.substring(offset+j);
+                    }
+                }
+            }
+            gts.add(Trees.readTree(stString));
+            //System.out.println(stString);
+            out.close();
+        }
+        return gts;
+    }
     //TODO
     public String[] getRAxMLStartT(int lociNum) throws IOException, ParseException, InterruptedException {
         //List<Tree> gts = new ArrayList<Tree>();
@@ -1675,6 +1756,13 @@ public class InferOperator {
         return diff;
     }
 
+    public double getRootDistance(Tree tree1, Tree tree2) {
+        SymmetricDifference symmetricDifference = new SymmetricDifference();
+        symmetricDifference.computeDifference(tree1, tree2, true);
+        double diff = symmetricDifference.getWeightedAverage();
+        return diff;
+    }
+
     public double sumDoubleList(List<Double> list) {
         double sum = 0.0;
         Iterator it = list.iterator();
@@ -1715,6 +1803,37 @@ public class InferOperator {
         }
         n.setParentDistance((NetNode<Double>) n.getParents().iterator().next(),treeHeight-height);
         return treeHeight-height;
+    }
+
+    //
+    //
+    ////////////////////////////////////
+    //For UPRA:
+
+    //Input: MS sample trees
+    //Output: distinguished MS topos
+    public List<Tree> getDistinguishedTopo(List<Tree> msTrees){
+        List<Tree> dTopos = new ArrayList<Tree>();
+        List<Integer> sameTopoNum = new ArrayList<Integer>();
+
+        for(int i = 0; i < msTrees.size(); i++){
+            if(sameTopoNum.contains(i))
+                continue;
+            Tree t1 = msTrees.get(i);
+            dTopos.add(t1);
+
+            for(int j = i+1 ; j < msTrees.size(); j++){
+                if(sameTopoNum.contains(j))
+                    continue;
+                Tree t2 = msTrees.get(j);
+                if(Trees.haveSameRootedTopology(t1,t2)){
+                    sameTopoNum.add(j);
+                }
+            }
+
+        }
+
+        return dTopos;
     }
 
 
