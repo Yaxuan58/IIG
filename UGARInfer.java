@@ -64,6 +64,8 @@ public class UGARInfer {
     private String GLOBALBESTST;
     private List<String> GLOBALBESTGTS;
     private double GLOBALBESTLL;
+    private double GLOBALBESTLL1;// ll(Seq|GT)
+    private double GLOBALBESTLL2;// ll(GT|ST)
 
 //    //7.26
 //    private List<String> checkedTopo;  //topos as checked order
@@ -96,8 +98,7 @@ public class UGARInfer {
     private double[] currentITLL; //=gtsLL[iter]
     private double currentLL;//=gtsLL[iter] LL(Seq|GTS)*(GTS|ST) for all locus for iteration i
     private double currentHLL;// =gtsHLL[iter]
-    private double[] currentGTLL; // = iterLLST
-    private double[] currentHGTLL; // = iterLLSeq
+    private double currentSTLL;// = current ll(G|ST)
     private double[] gtDis;
 
     private List<Double> bestSTLL;// temporary best ST LL for iteration i
@@ -141,7 +142,7 @@ public class UGARInfer {
         GLOBALBESTGTS = new ArrayList<String>();
         trueSeq = new ArrayList<Alignment>();
         //TODO: PARA
-        ITERATION = 20; //{1k, 5k ,10k}
+        ITERATION = 50; //{1k, 5k ,10k}
         ISREALDATA = false;
         FULL_LL = true;
         DATASET = "17";
@@ -154,17 +155,15 @@ public class UGARInfer {
         _scales = new double[]{1.0};
         _seqLens = new int[]//{200, 400,600,800,1000};
                 {200, 400,600,800,1000,200, 400,600, 800,1000};
-                //{200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200};
+                //{ 200,200,200,200,200,1000, 1000, 1000, 1000, 1000};
         taxaNum = 16;
-        ll_Ratio = 1.0; // P(seq|GT): p(GT|ST)
+        ll_Ratio = 0.25; // P(seq|GT): p(GT|ST)
         gtsLL = new double[ITERATION];// LL(Seq|GTS)*(GTS|ST)
         // LL(Seq|GTS)*(GTS|ST) for pseudo version || not used for classic version
         gtsHLL = new double[ITERATION];
         currentITLL = new double[ITERATION];
         currentLL = 0.0; // LL(Seq|GTS)*(GTS|ST)
         currentHLL = 0.0;
-        currentGTLL = new double[lociNum]; // P(Seq|GT)
-        currentHGTLL = new double[lociNum];
         currentITLL = new double[ITERATION];
 
         cHeights = new HashMap<String, Double>();
@@ -186,16 +185,16 @@ public class UGARInfer {
         operator.isExitsPath(resultFolder);
         locusBestGTS = new ArrayList<Tree>();
         locusGTLL = new double[lociNum];
-        weights = new double[]//{1,2,3,4,5};
-                {1,2,3,4,5,1,2,3,4,5};
+        weights = new double[]{1,2,3,4,5,1,2,3,4,5};
+                //{1,1,1,1,1,5,5,5,5,5};
         astInit = new double[2];
-        List<String> trees = simulator.loadTrees("/Users/doriswang/PhyloNet/Data/IIG/symmetrical1/0001/", lociNum);
+        List<String> trees = simulator.loadRandomTrees("/Users/doriswang/PhyloNet/Data/IIG/symmetrical1/0001/", lociNum, 35);
         trueST = trees.get(0);
         //trueGTS = trees.subList(1, trees.size());
         for (int i = 0; i < lociNum; i++) {
             trueGTS.add(trees.get(i + 1));
             trueTopos.add(Trees.readTree(trees.get(i + 1)));
-            Alignment aln = operator.loadLocus(i, _seqLens[i], taxaNum, "/Users/doriswang/PhyloNet/Data/IIG/symmetrical1/0001/");
+            Alignment aln = operator.loadRandomLocus(i, _seqLens[i], taxaNum, "/Users/doriswang/PhyloNet/Data/IIG/symmetrical1/0001/", 35);
             trueSeq.add(aln);
         }
         for(int i = 0; i<lociNum; i++){
@@ -236,7 +235,7 @@ public class UGARInfer {
         Network<NetNodeInfo> tempST = initST(aln);
         itNum++;
         System.out.println("\n" + "#0" + " iteration start! ");
-        System.out.println("Current LL is" + GLOBALBESTLL);
+        System.out.println("Current global best LL is" + GLOBALBESTLL + "  Current global best LL(S|G) is" + GLOBALBESTLL1);
 
         System.out.println("RF of Best ST : " + operator.getDistance(Trees.readTree(GLOBALBESTST), Trees.readTree(trueST)));
         System.out.println("Average distance of GTS is " + gtDis[0]);
@@ -245,6 +244,11 @@ public class UGARInfer {
         for (int i = 1; i < t; i++) {
             System.out.println("\n" + "#" + itNum + " iteration start! ");
             System.out.println(" Current ST is " + tempST.toString());
+            //TODO tuning ll ratio
+            if(i%25==0) {
+                ll_Ratio *= 2;
+                System.out.println("!!!!! ll_Ratio: " + ll_Ratio);
+            }
             tempST = refineGeneSet(tempST);
             itNum++;
         }
@@ -302,6 +306,7 @@ public class UGARInfer {
         bw2.write("STATEGY : " + STRATEGY + "\n");
 
         bw2.write("Best Likelihood value : " + String.valueOf(GLOBALBESTLL) + "\n");
+        bw2.write("Best GT Likelihood value : " + String.valueOf(GLOBALBESTLL1) + "\n");
         bw2.write("Iteration number of best Likelihood value : " + String.valueOf(bestLLIter) + "\n");
         bw2.write("Likelihood combined ratio : " + ll_Ratio + "\n");
 
@@ -335,6 +340,7 @@ public class UGARInfer {
         BufferedWriter ldOut = new BufferedWriter(new FileWriter(resultFolder + "distance.txt"));
         //6.10 TODO multi-ST distance
         double totalD = 0.0;
+        System.out.println("--------------------------------------------------------------");
         System.out.println("---------------------------Result-----------------------------");
         System.out.println("Running time:" + String.valueOf(costtime));
         System.out.println("Best Likelihood value : " + String.valueOf(GLOBALBESTLL));
@@ -460,13 +466,19 @@ public class UGARInfer {
         currentITLL[itNum] = currentLL;
         double stDistance = 0.0;
         double gtDistance = 0.0;
-        if (currentLL >= GLOBALBESTLL) {
+        double p1 = currentHLL;
+        double p2 = currentLL - currentHLL;
+        double ifMove = (p1 - GLOBALBESTLL1) + ll_Ratio*(p2-(GLOBALBESTLL-GLOBALBESTLL1));
+        if(itNum==1)
+            ifMove = 1;
+        if ( ifMove>0) {
             move = true;
             maxLL = currentLL;
             bestLLIter = itNum;
             GLOBALBESTST = tempST.toString();
             bestSTLL.add(currentLL);
             GLOBALBESTLL = currentLL;
+            GLOBALBESTLL1 = currentHLL;
             stDistance = operator.getDistance(Trees.readTree(GLOBALBESTST), Trees.readTree(trueST));
             bestSTD.add(stDistance);
             bestITNum.add(itNum);
@@ -539,8 +551,8 @@ public class UGARInfer {
     //Input: msTopos, ST, msTopoLL
     //Output: current GTS_nu no external, current LL
     public List<Tree> getBestGTSByR(List<Tree> topos, Network<NetNodeInfo> tempST, List<Double> msTopoLL) throws IOException {
-        iterLLSeq = new double[msTopoLL.size()];
-        iterLLST = new double[msTopoLL.size()];
+        iterLLSeq = new double[lociNum];
+        iterLLST = new double[lociNum];
         currentHLL = 0.0;
         currentLL = 0.0;
         List<Tree> bestGTs = new ArrayList<Tree>(); // scaled RAxML trees
@@ -552,7 +564,7 @@ public class UGARInfer {
         for (int i = 0; i < lociNum; i++) {
             double[] llList = operator.getLocusLL(i, refineGTSize);
 
-            double bestLL = llList[0] + ll_Ratio * msTopoLL.get(0);
+            double bestLL = llList[0] + msTopoLL.get(0);
             int bestGTNumi = 0;
             for (int j = 0; j < llList.length; j++) {
                 if(llList[j]>locusGTLL[i]){
@@ -560,7 +572,7 @@ public class UGARInfer {
                     locusBestGTS.set(i,operator.getbestGTi(i, j));
                 }
 
-                double tempLL = llList[j] + ll_Ratio * msTopoLL.get(j);
+                double tempLL = llList[j] + msTopoLL.get(j);
                 if (bestLL < tempLL) {
                     bestLL = tempLL;
                     bestGTNumi = j;
@@ -569,13 +581,14 @@ public class UGARInfer {
             bestGTs.add(operator.scaleGT(operator.getbestGTi(i, bestGTNumi), halfTheta, false));
             bestGTLL.add(bestLL);
             //TODO: get P(gt_j|st)
-            currentLL += bestLL;
+            currentLL +=  llList[bestGTNumi] + msTopoLL.get(bestGTNumi);
             bestGTNum.add(bestGTNumi);
             iterLLST[i] = msTopoLL.get(bestGTNumi);
             iterLLSeq[i] = llList[bestGTNumi];
             currentHLL += llList[bestGTNumi];
             //currentLL += bestLL;
         }
+
         return bestGTs;
     }
 
@@ -621,6 +634,8 @@ public class UGARInfer {
         }
         System.out.println("currentLL : " + currentLL);
         GLOBALBESTLL = Double.NEGATIVE_INFINITY;
+        GLOBALBESTLL1 = Double.NEGATIVE_INFINITY;
+
         maxLL = Double.NEGATIVE_INFINITY;
 
         gtsHLL[0] = Double.NEGATIVE_INFINITY;

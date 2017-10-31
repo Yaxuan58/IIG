@@ -264,6 +264,48 @@ public class InferOperator {
     }
 
 
+    public Alignment loadRandomLocus(int seqNum, int seqLength, int taxaNum, String inputFile, int offset) throws IOException, InterruptedException {
+        //"seq_" + tid + "_" + seqLen +".nex";scale + "/seq_" + i + "_" + len + ".nex"
+        Map<String, String> locus = new HashMap<String, String>();
+        inputFile = inputFile + "seq_" + String.valueOf(seqNum+offset) + "_" + seqLength + ".nex";
+        BufferedReader br = new BufferedReader(new FileReader(inputFile));
+        String line = "";
+        int j = 1;
+        while (j < 21) {
+            br.readLine();
+            j++;
+        }
+        for (int i = 0; i < taxaNum; i++) {
+            line = br.readLine().trim();
+            String[] temp = line.split((" "));
+            if (temp.length > 2) {
+                temp[1] = temp[2];
+            }
+            String lociName = temp[0];
+            String seq = "";
+            seq = temp[1].substring(0, seqLength);
+            locus.put(lociName, seq);
+            //locus.remove("O");
+        }
+        Alignment aln = new Alignment(locus);
+        isExitsPath(_RAxMLdir + seqNum );
+        BufferedWriter phy = new BufferedWriter(new FileWriter(_RAxMLdir + seqNum + "/dna.phy"));
+        phy.write(taxaNum + " " + seqLength + '\n');
+        phy.flush();
+        List<String> names = aln.getTaxaNames();
+        Map<String, String> thisAln = aln.getAlignment();
+        for (int i = 0; i < taxaNum; i++) {
+            String name = names.get(i);
+            String seq = thisAln.get(name);
+            phy.write(name + '\t' + seq + '\n');
+        }
+        phy.flush();
+        phy.close();
+
+        return aln;
+    }
+
+
     //load seq data from raxml
     public List<Alignment> loadSYRByRX(int lociNum, int[] seqLength, int taxaNum, List<Alignment> trueSeq) throws IOException {
         //"seq_" + tid + "_" + seqLen +".nex";scale + "/seq_" + i + "_" + len + ".nex"

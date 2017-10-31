@@ -253,6 +253,19 @@ public class IIGTSimulator {
     }
 
 
+    public static List<String> loadRandomTrees( String filePath, int lociNum, int offset) throws IOException{
+        List<String> trees = new ArrayList<String>();
+        String streeFile = filePath + "Tree/trueST.txt";
+        BufferedReader stReader = new BufferedReader(new FileReader(streeFile));
+        String trueST = (String) stReader.readLine().trim();
+        trees.add(trueST);
+        for (int ln = offset; ln < lociNum+ offset ; ln++) {
+            String tree = stReader.readLine().trim();
+            trees.add(tree);
+        }
+        return trees;
+    }
+
     public static List<String> checkTreeBias(String filePath, int lociNum, int taxaNum, int[] _seqLens) throws IOException, InterruptedException {
         InferOperator operator = new InferOperator(100);
         List<String> trees = new ArrayList<String>();
