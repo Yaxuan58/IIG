@@ -726,7 +726,7 @@ public class InferOperator {
 
         UPGMATree upgma = new UPGMATree(new JCDistance(seq.getAlignment()));
         UltrametricTree template = upgma.getUltrametricTree();
-        System.out.println("Init gene tree： " + template.getTree().toNewick());
+        //System.out.println("Init gene tree： " + template.getTree().toNewick());
         List<UltrametricTree> geneTrees = new ArrayList<>();
         geneTrees.add(upgma.getUltrametricTree());
         return geneTrees;
