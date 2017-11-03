@@ -104,8 +104,8 @@ public class IterativeImprovement {
 
     IterativeImprovement() throws IOException, InterruptedException, ParseException{
         //TODO Simulation
-        simulator = new IIGTSimulator(trueGTSize, _scales, _seqLens, halfTheta, ITERATION);
-        operator = new InferOperator(ITERATION);
+        simulator = new IIGTSimulator(trueGTSize, _scales, _seqLens, halfTheta, ITERATION, "/Users/doriswang/PhyloNet/Data/IIG/");
+        operator = new InferOperator("/Users/doriswang/PhyloNet/Data/IIG/","/Users/doriswang/PhyloNet/Data/IIG/output",0);
         String resultFolder = RESULT_DIR + ITERATION + "/" + taxaNum + "_" + lociNum + "/" + refineGTSize + "/";
         operator.isExitsPath(resultFolder);
         if (ISREALDATA) {
@@ -1045,7 +1045,7 @@ public class IterativeImprovement {
     public static void main(String[] args) throws IOException, ParseException, InterruptedException {
         IterativeImprovement ii = new IterativeImprovement();
         ii.iigt(trueSeq, ITERATION);
-        InferOperator op = new InferOperator(2000);
+        InferOperator op = new InferOperator("/Users/doriswang/PhyloNet/Data/IIG/", "/Users/doriswang/PhyloNet/Data/IIG/output",0);
         op.load17Data("/Users/doriswang/PhyloNet/Data/17-taxon/004/ST0/1/", 1000, 32, trueSeq, new ArrayList<String>());
 
 //        String stString = "(Marmoset,((Tarsier,((Galago,Mouse_Lemur)1:2.4018020540034675,((Horse,Sloth)1:2.6056351956741435,(Tree_Shrew,(Rat,Rabbit)1:0.8024369743576611)0.92:0.08540838439417373)1:1.9852014529353605)1:0.655284855661726)1:4.260329699696363,(Macaque,(Orangutan,((Human,Chimpanzee)1:0.6408490436022495,Gorilla)1:2.3251916476229617)1:2.5898315305010144)1:2.7005416959060815));";

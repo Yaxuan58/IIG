@@ -171,8 +171,8 @@ public class ASTImprovement {
         //optGTSList = new ArrayList<List<Tree>>() ;
         STRATEGY = "RANDOM"; //RANDOM IMPROVE N
         //TODO Simulation
-        simulator = new IIGTSimulator(lociNum, _scales, _seqLens, halfTheta, ITERATION);
-        operator = new InferOperator(ITERATION);
+        simulator = new IIGTSimulator(lociNum, _scales, _seqLens, halfTheta, ITERATION, "/Users/doriswang/PhyloNet/Data/IIG/");
+        operator = new InferOperator("/Users/doriswang/PhyloNet/Data/IIG/", "/Users/doriswang/PhyloNet/Data/IIG/output",0);
         String resultFolder = RESULT_DIR + ITERATION + "/" + taxaNum + "_" + lociNum + "/" + refineGTSize + "/";
         operator.isExitsPath(resultFolder);
         if (ISREALDATA) {
@@ -198,8 +198,8 @@ public class ASTImprovement {
     public static void main(String[] args) throws IOException, ParseException, InterruptedException {
 
         ASTImprovement ast = new ASTImprovement(0);
-        InferOperator operator = new InferOperator(ITERATION);
-        IIGTSimulator simulator1 = new IIGTSimulator(10, _scales, _seqLens, 0.04, 100);
+        InferOperator operator = new InferOperator("/Users/doriswang/PhyloNet/Data/IIG/", "/Users/doriswang/PhyloNet/Data/IIG/output",0);
+        IIGTSimulator simulator1 = new IIGTSimulator(10, _scales, _seqLens, 0.04, 100, "/Users/doriswang/PhyloNet/Data/IIG/");
         //ast.initST(trueSeq);
         ast.iigt(trueSeq,ITERATION);
         System.out.println("Finish");

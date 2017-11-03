@@ -40,25 +40,27 @@ public class IIGTSimulator {
     //private static int[] _numLocis = new int[] {32, 64, 128};
     private static double halfTheta;
     private static int iteration;
+    private static String _DIR;
+    private static String msPath;
+    private static String seqGenePath;
+    private static String TREE_DIR;
+    private static String SEQ_DIR;
 
-    private static String msPath = "/Users/doriswang/PhyloNet/tools/msFiles/msdir/ms";
-    private static String seqGenePath = "/Users/doriswang/PhyloNet/tools/Seq-Gen.v1.3.3/source/seq-gen";
-    private static String TREE_DIR = "/Users/doriswang/PhyloNet/Data/IIG/tree/";
-    private static String SEQ_DIR = "/Users/doriswang/PhyloNet/Data/IIG/seq/";
-    private static String _DIR =
-            "/Users/doriswang/PhyloNet/Data/IIG/";
 
-    IIGTSimulator(int numGT, double[] scales, int[] seqLens, double halfTheta, int t) {
+    IIGTSimulator(int numGT, double[] scales, int[] seqLens, double halfTheta, int t, String dir) {
         this.numGTs = numGT;
         this._scales = scales;
         this._seqLens = seqLens;
         this.halfTheta = halfTheta;
         this.iteration = t;
+        _DIR = dir;
+        msPath = _DIR + "tools/msFiles/msdir/ms";
+        seqGenePath = _DIR + "tools/Seq-Gen.v1.3.3/source/seq-gen";
     }
 
     public static void main(String[] args) throws IOException, InterruptedException{
         _seqLens = new int[] {50,100,200,400,600,800,1000};
-        IIGTSimulator simulator1 = new IIGTSimulator(200, _scales, _seqLens, 0.005, 10);
+        IIGTSimulator simulator1 = new IIGTSimulator(200, _scales, _seqLens, 0.005, 10, "/Users/doriswang/PhyloNet/Data/IIG/");
 
 
         //TODO: CAUTION!!!
@@ -99,7 +101,7 @@ public class IIGTSimulator {
                 n.setParentDistance(p, n.getParentDistance(p) / 1000000); // scale to c_Unit
             }
         }
-        InferOperator ifo = new InferOperator(1000);
+        InferOperator ifo = new InferOperator(_DIR,_DIR + "output/",0);
         ifo.isExitsPath(seqPath);
         BufferedWriter stbw = new BufferedWriter(new FileWriter(seqPath + "trueST.txt"));
         stbw.write(trueST.toString());
@@ -267,7 +269,7 @@ public class IIGTSimulator {
     }
 
     public static List<String> checkTreeBias(String filePath, int lociNum, int taxaNum, int[] _seqLens) throws IOException, InterruptedException {
-        InferOperator operator = new InferOperator(100);
+        InferOperator operator = new InferOperator(_DIR,_DIR + "/output", 0);
         List<String> trees = new ArrayList<String>();
         List<Tree> gts = new ArrayList<Tree>();
         String streeFile = filePath + "Tree/trueST.txt";
@@ -482,7 +484,8 @@ public class IIGTSimulator {
 
                 trees.add(trueST.toString());
                 //String folder = "" + iteration;
-                InferOperator operator = new InferOperator(100);
+                InferOperator operator = new InferOperator(_DIR,_DIR + "/output",0);
+
 
                 String seqDir = "/Users/doriswang/PhyloNet/Data/IIG/asymmetrical1/001/";
                 String treeDir = "/Users/doriswang/PhyloNet/Data/IIG/asymmetrical1/001/Tree/";
