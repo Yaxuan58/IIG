@@ -55,16 +55,16 @@ public class InferOperator {
     protected  String _RAxMLdir;
     private  String _fastTree;
     //String inputPath, String outputPath, int index, double hTheta, int iteration, int lnum
-    InferOperator(String inputPath, String outputPath, int index) {
+    InferOperator(String inputPath, String outputPath, int index, int rNum) {
         InputPath = inputPath;
         OutputPath = outputPath;
         _msdir = InputPath + "tools/msFiles/msdir/ms";
         //    _msdir = inputPath + "tools/msFiles/msdir/ms"; ///home/yw58/IIG/tools/Astral/astral.4.11.1.jar
 //    _ASTRALdir = inputPath + "tools/Astral/";
 //    RESULT_DIR = outputPath ;//"/Users/doriswang/PhyloNet/Data/IIG/result/" | home/yw58/IIG/output
-        _ASTRALdir = InputPath + "tools/Astral/" + index + "/";
-         _RAxMLdir = InputPath + "tools/standard-RAxML-master/" ;
-        _fastTree = InputPath + "tools/FT/";
+        _ASTRALdir = InputPath + "tools/Astral/" + rNum + "/";
+         _RAxMLdir = InputPath + "tools/RAxML/" + rNum + "/" ;
+        _fastTree = InputPath + "tools/FT/"+ rNum + "/";
         Index = index;
 
     }
@@ -84,8 +84,8 @@ public class InferOperator {
     }
     public static void main(String[] args) throws  IOException, InterruptedException, ParseException{
 
-        InferOperator ifo = new InferOperator("/Users/doriswang/PhyloNet/", "/Users/doriswang/PhyloNet/output",0);
-        //ifo.changeUpdateSh(50,100);
+        InferOperator ifo = new InferOperator("/Users/doriswang/PhyloNet/", "/Users/doriswang/PhyloNet/output",0,0);
+        ifo.changeUpdateSh(100,100);
 //        double[] ll = new double[50];
 //        String[] trees = new String[50];
 //        ifo.getInitTree(trees, ll, 50);
@@ -265,8 +265,8 @@ public class InferOperator {
             //locus.remove("O");
         }
         Alignment aln = new Alignment(locus);
-        isExitsPath(_RAxMLdir + Index  + "/" + seqNum );
-        BufferedWriter phy = new BufferedWriter(new FileWriter(_RAxMLdir + Index  + "/" + seqNum + "/dna.phy"));
+        isExitsPath(_RAxMLdir + seqNum );
+        BufferedWriter phy = new BufferedWriter(new FileWriter(_RAxMLdir + seqNum + "/dna.phy"));
         phy.write(taxaNum + " " + seqLength + '\n');
         phy.flush();
         List<String> names = aln.getTaxaNames();
@@ -307,8 +307,8 @@ public class InferOperator {
             //locus.remove("O");
         }
         Alignment aln = new Alignment(locus);
-        isExitsPath(_RAxMLdir  + Index  + "/"+ seqNum );
-        BufferedWriter phy = new BufferedWriter(new FileWriter(_RAxMLdir  + Index  + "/"+ seqNum + "/dna.phy"));
+        isExitsPath(_RAxMLdir  + seqNum );
+        BufferedWriter phy = new BufferedWriter(new FileWriter(_RAxMLdir  + seqNum + "/dna.phy"));
         phy.write(taxaNum + " " + seqLength + '\n');
         phy.flush();
         List<String> names = aln.getTaxaNames();
@@ -326,21 +326,23 @@ public class InferOperator {
 
 
     //load seq data from raxml
+    //TODO RAxML path
     public List<Alignment> loadSYRByRX(int lociNum, int[] seqLength, int taxaNum, List<Alignment> trueSeq) throws IOException {
         //"seq_" + tid + "_" + seqLen +".nex";scale + "/seq_" + i + "_" + len + ".nex"
         Map<String, String> locus = new HashMap<String, String>(); //20 taxa except 1
         Map<String, String> fullLocus = new HashMap<String, String>(); // 21 taxa include i(OG)
         List<Alignment> fullalns = new ArrayList<Alignment>();
         for(int l = 0; l<lociNum; l++){
-            String inputFile = InputPath + "tools/standard-RAxML-master/"  + Index  + "/" + l + "/dna.phy";
+            String inputFile ="/Users/doriswang/PhyloNet/Data/syr/38LocusData/"
+                    + l + "/seq1.phy";
             BufferedReader br = new BufferedReader(new FileReader(inputFile));
             String line = "";
             String[] temp;
             line = br.readLine().trim();
-            temp = line.split(" ");
-            for (int i = 0; i < taxaNum; i++) {
+            temp = line.split("\t");
+            for (int i = 0; i < taxaNum+5; i++) {
                 line = br.readLine().trim();
-                temp = line.split((" "));
+                temp = line.split(("\t"));
                 if (temp.length > 2) {
                     temp[1] = temp[2];
                 }
@@ -348,7 +350,11 @@ public class InferOperator {
                 //String seq = temp[1].substring(0, seqLength);
                 locus.put(lociName, temp[1]);
                 fullLocus.put(lociName, temp[1]);
-                locus.remove("O");
+                locus.remove("0");
+                locus.remove("1");
+                locus.remove("3");
+                locus.remove("11");
+                locus.remove("21");
             }
             br.close();
             Alignment fullAln = new Alignment(fullLocus);
@@ -357,7 +363,7 @@ public class InferOperator {
             fullalns.add(fullAln);
         }
 
-        return fullalns;
+        return trueSeq;
     }
 
 
@@ -406,7 +412,7 @@ public class InferOperator {
             Alignment aln = new Alignment(locus);
             trueSeq.add(aln);
             fullSeq.add(fullAln);
-            BufferedWriter phy = new BufferedWriter(new FileWriter( _RAxMLdir  + Index  + "/"+ (i+19) + "/dna.phy" ));
+            BufferedWriter phy = new BufferedWriter(new FileWriter( _RAxMLdir + (i+19) + "/dna.phy" ));
             phy.write( taxaNum + " " + seqLength[i] + '\n');
             phy.flush();
             List<String> names = fullAln.getTaxaNames();
@@ -656,7 +662,7 @@ public class InferOperator {
         int taxaNum = 17;
         int seqLen = seqlens;
         for(int i = 0; i<lociNum; i++){
-            BufferedWriter phy = new BufferedWriter(new FileWriter(_RAxMLdir  + Index  + "/"+ i + "/dna.phy"));
+            BufferedWriter phy = new BufferedWriter(new FileWriter(_RAxMLdir   + "/"+ i + "/dna.phy"));
             phy.write( taxaNum + " " + seqLen + '\n');
             phy.flush();
             Alignment a = trueSeq.get(i);
@@ -831,7 +837,7 @@ public class InferOperator {
 
     //infer ST by GTS by ASTRAL
     public BniNetwork<NetNodeInfo> inferSTByAST(List<UltrametricTree> geneTrees, double popSize) throws IOException, ParseException {
-        String command = "java -jar " + _ASTRALdir + "astral.4.11.1.jar -i " + InputPath + "tools/Astral/test_data/tempIn.tre -o " + InputPath + "ttools/Astral/test_data/testOut.tre"; ///Users/doriswang/PhyloNet/tools/Astral/test_data/tempIn.tre -o /Users/doriswang/PhyloNet/tools/Astral/test_data/testOut.tre";
+        String command = "java -jar " + _ASTRALdir + "astral.4.11.1.jar -i " + _ASTRALdir + "test_data/tempIn.tre -o " + _ASTRALdir + "test_data/testOut.tre"; ///Users/doriswang/PhyloNet/tools/Astral/test_data/tempIn.tre -o /Users/doriswang/PhyloNet/tools/Astral/test_data/testOut.tre";
 
         String cmdFile = _ASTRALdir + "tempCMD.sh";
         BufferedWriter cmd = new BufferedWriter(new FileWriter(cmdFile));
@@ -935,13 +941,13 @@ public class InferOperator {
         List<Tree> gts = new ArrayList<Tree>();
         for (int i = 0; i < lociNum; i++) {
             System.out.println("RAXML No" + i + "Start...");
-            isExitsPath(_RAxMLdir  + Index  + "/"+ i);
+            isExitsPath(_RAxMLdir + i);
             String rm = "rm *.T" + i + '\n';
             //./raxmlHPC-PTHREADS -M -m GTRGAMMA -p 12345 -# 10 -s 0/dna.phy -n T0
-            String raxml = _RAxMLdir + "raxmlHPC-PTHREADS -M -m GTRGAMMA -p 12345 -# 30 " + "-s " + Index  + "/"+ i + "/dna.phy -n T" + i;
-            String cmdFile = _RAxMLdir + Index  + "/" + i + "/tempCMD.sh";
+            String raxml = _RAxMLdir + "raxmlHPC-PTHREADS -M -m GTRGAMMA -p 12345 -# 30 " + "-s " + i + "/dna.phy -n T" + i;
+            String cmdFile = _RAxMLdir + i + "/tempCMD.sh";
             BufferedWriter cmd = new BufferedWriter(new FileWriter(cmdFile));
-            String tempR = _RAxMLdir +  Index  + "/";
+            String tempR = _RAxMLdir ;
             cmd.write("cd " + tempR.substring(0, tempR.length() - 1) + '\n');
             cmd.write(rm);
             cmd.flush();
@@ -963,7 +969,7 @@ public class InferOperator {
             }
         }
         for (int i = 0; i < lociNum; i++) {
-            String outputFile = _RAxMLdir + Index  + "/" + "RAxML_bestTree.T" + i;
+            String outputFile = _RAxMLdir + "RAxML_bestTree.T" + i;
             BufferedReader gtReader = new BufferedReader(new FileReader(outputFile));
             String gtString = gtReader.readLine().trim();
             gts.add(Trees.readTree(gtString));
@@ -978,8 +984,8 @@ public class InferOperator {
         List<Tree> gts = new ArrayList<Tree>();
         for (int i = 0; i < lociNum; i++) {
             //System.out.println("No" + i + "Start...");
-            isExitsPath(_fastTree +Index+ "/" + i );
-            BufferedWriter bw = new BufferedWriter(new FileWriter(_fastTree +"/" +Index + "/" + i + ".phy"));
+            isExitsPath(_fastTree + i );
+            BufferedWriter bw = new BufferedWriter(new FileWriter(_fastTree + "/" + i + ".phy"));
             Alignment temp = aln.get(i);
             Map<String, String> thisAln = temp.getAlignment();
             int taxaNum = temp.getTaxonSize();
@@ -991,11 +997,11 @@ public class InferOperator {
             }
             bw.flush();
             bw.close();
-            isExitsPath(_fastTree + "/" +Index);
+            isExitsPath(_fastTree );
             String rm = "rm *.T" + i + '\n';
             //./raxmlHPC-PTHREADS -M -m GTRGAMMA -p 12345 -# 10 -s 0/dna.phy -n T0
-            String command = _fastTree + "FastTree -gtr -nt < " +Index + "/" + i + ".phy > " +Index + "/" + i + ".T";
-            String cmdFile = _fastTree + Index + "/FastTree" + i + ".sh";
+            String command = _fastTree + "FastTree -gtr -nt < " + i + ".phy > " + i + ".T";
+            String cmdFile = _fastTree + "/FastTree" + i + ".sh";
             BufferedWriter cmd = new BufferedWriter(new FileWriter(cmdFile));
             cmd.write("cd " + _fastTree.substring(0, _fastTree.length() - 1) + '\n');
             cmd.write(rm);
@@ -1018,7 +1024,7 @@ public class InferOperator {
             }
         }
         for (int i = 0; i < lociNum; i++) {
-            String outputFile = _fastTree +Index + "/"+ i + ".T";
+            String outputFile = _fastTree + i + ".T";
             BufferedReader out = new BufferedReader(new FileReader(outputFile));
             //String gtString = gtReader.readLine().trim();
             String stString = out.readLine().trim();
@@ -1059,8 +1065,8 @@ public class InferOperator {
         //List<Tree> gts = new ArrayList<Tree>();
         String[] gts = new String[lociNum];
         for (int i = 0; i < lociNum; i++) {
-            String tree = _RAxMLdir +  Index  + "/RAxML_Init/RAxML_bestTree.T" + i;
-            String llFile = _RAxMLdir +  Index  + "/RAxML_Init/RAxML_info.T" + i;
+            String tree = _RAxMLdir + "/RAxML_Init/RAxML_bestTree.T" + i;
+            String llFile = _RAxMLdir + "/RAxML_Init/RAxML_info.T" + i;
             BufferedReader gtReader = new BufferedReader(new FileReader(tree));
             String gtString = gtReader.readLine().trim();
             gtReader.close();
@@ -1089,15 +1095,17 @@ public class InferOperator {
         //writeSeq + partition     rm + raxml    read in
         List<Tree> gts = new ArrayList<Tree>();
         for (int i = 0; i < lociNum; i++) {
-            String seqPath = _RAxMLdir + Index  + "/"+ i;
+            String seqPath;
             for(int j = 0; j<msSize; j++){
+                seqPath = _RAxMLdir  + i + "/";
                 String tName = "L" + String.valueOf(i) + "T" + String.valueOf(j); // L_i T_j
-                BufferedWriter phy = new BufferedWriter(new FileWriter(seqPath + "/updateL" + String.valueOf(i) + "T" + String.valueOf(j) + ".sh"));
-                phy.write("cd " + InputPath + "tools/standard-RAxML-master" + '\n');
+                BufferedWriter phy = new BufferedWriter(new FileWriter(seqPath + "updateL" + String.valueOf(i) + "T" + String.valueOf(j) + ".sh"));
+                System.out.println(seqPath + "updateL" + String.valueOf(i) + "T" + String.valueOf(j) + ".sh");
+                phy.write("cd " + _RAxMLdir + '\n');
                 phy.flush();
                 phy.write("rm *." + tName + '\n');
                 phy.flush();
-                phy.write(InputPath + "tools/standard-RAxML-master/raxmlHPC-PTHREADS  -f e -t topo.T" + String.valueOf(j) + " -m GTRGAMMA -s " + String.valueOf(i) + "/dna.phy -n " + tName + '\n');
+                phy.write(_RAxMLdir    + "raxmlHPC-PTHREADS  -f e -t topo.T" + String.valueOf(j) + " -m GTRGAMMA -s " + String.valueOf(i) + "/dna.phy -n " + tName + '\n');
                 phy.flush();
                 phy.close();
             }
@@ -1112,15 +1120,20 @@ public class InferOperator {
         //writeSeq + partition     rm + raxml    read in
         List<Tree> gts = new ArrayList<Tree>();
         for (int i = 0; i < lociNum; i++) {
-            String seqPath = "/Users/doriswang/PhyloNet/tools/standard-RAxML-master/" + i;
+
+            String seqPath = _RAxMLdir + i + "/";
             for(int j = 0; j<msSize; j++){
                 String tName = "L" + String.valueOf(i) + "T" + String.valueOf(j); // L_i T_j
-                BufferedWriter phy = new BufferedWriter(new FileWriter(seqPath + "/updateL" + String.valueOf(i) + "T" + String.valueOf(j) + ".sh"));
-                phy.write("cd " + "/home/yw58/IIG/tools/standard-RAxML-master/" + '\n');
+                BufferedWriter phy = new BufferedWriter(new FileWriter(seqPath + "updateL" + String.valueOf(i) + "T" + String.valueOf(j) + ".sh"));
+                //phy.write("cd " + "/home/yw58/IIG/tools/RAxML/1/" + '\n');
+                phy.write("cd " + _RAxMLdir + '\n');
+
                 phy.flush();
                 phy.write("rm *." + tName + '\n');
                 phy.flush();
-                phy.write("/home/yw58/IIG/tools/standard-RAxML-master/raxmlHPC-PTHREADS  -f e -t topo.T" + String.valueOf(j) + " -m GTRGAMMA -s " + String.valueOf(i) + "/dna.phy -n " + tName + '\n');
+
+                phy.write(_RAxMLdir + "raxmlHPC-PTHREADS  -f e -t topo.T" + String.valueOf(j) + " -m GTRGAMMA -s " + String.valueOf(i) + "/dna.phy -n " + tName + '\n');
+                //phy.write("/home/yw58/IIG/tools/RAxML/1/" + "raxmlHPC-PTHREADS  -f e -t topo.T" + String.valueOf(j) + " -m GTRGAMMA -s " + String.valueOf(i) + "/dna.phy -n " + tName + '\n');
                 phy.flush();
                 phy.close();
             }
@@ -1134,8 +1147,8 @@ public class InferOperator {
         //writeSeq + partition     rm + raxml    read in
         List<Tree> gts = new ArrayList<Tree>();
         for (int i = 0; i < lociNum; i++) {
-            isExitsPath(_RAxMLdir +  Index  + "/" +i);
-            BufferedWriter phy = new BufferedWriter(new FileWriter(_RAxMLdir +  Index  + "/" + i + "/dnaNoOG.phy"));
+            isExitsPath(_RAxMLdir +i);
+            BufferedWriter phy = new BufferedWriter(new FileWriter(_RAxMLdir  + i + "/dnaNoOG.phy"));
             phy.write(taxaNum + " " + seqLen + '\n');
             phy.flush();
             Alignment a = aln.get(i);
@@ -1395,7 +1408,7 @@ public class InferOperator {
 
     public void updateMSTopos(List<Tree> topos) throws IOException {
 
-            String seqPath = _RAxMLdir + Index  + "/";
+            String seqPath = _RAxMLdir ;
             for(int j = 0; j<topos.size(); j++){
                 BufferedWriter topow = new BufferedWriter(new FileWriter(seqPath + "topo.T" + String.valueOf(j)));
                 topow.write(topos.get(j).toString());
@@ -1410,10 +1423,10 @@ public class InferOperator {
 
         //String seqPath = _RAxMLdir;
         for (int i = 0; i < lociNum; i++) {
-            String seqPath = _RAxMLdir + Index  + "/" + i + "/";
+            String seqPath = _RAxMLdir  + i + "/";
             for(int j = 0; j<msSize; j++){
                 //updateL0T1.sh
-                String cmdFile = _RAxMLdir +  Index  + "/" + i + "/updateL" + String.valueOf(i) + "T" + String.valueOf(j) + ".sh";
+                String cmdFile = _RAxMLdir  + i + "/updateL" + String.valueOf(i) + "T" + String.valueOf(j) + ".sh";
                 ProcessBuilder pb = new ProcessBuilder("/bin/bash", cmdFile);
                 pb.redirectErrorStream(true);
                 try {
@@ -1437,7 +1450,7 @@ public class InferOperator {
         double[] ll = new double[msSize];
         //String outputFile = _RAxMLdir + "RAxML_result.TEST" + i;
         for(int j = 0; j<msSize; j++){
-            String llFile = _RAxMLdir + Index  + "/" + "RAxML_log.L" + String.valueOf(locusNum) + "T" + String.valueOf(j);
+            String llFile = _RAxMLdir  + "/RAxML_log.L" + String.valueOf(locusNum) + "T" + String.valueOf(j);
             BufferedReader llReader = new BufferedReader(new FileReader(llFile));
             String[] llString = llReader.readLine().trim().split(" ");
             double tempLL = Double.valueOf(llString[1]);
@@ -1453,11 +1466,11 @@ public class InferOperator {
     public double[] getInitTree(String[] trees, double[] ll, int lociNum) throws IOException {
 
         for(int j = 0; j<lociNum; j++){
-            String tFile = _RAxMLdir +  Index  + "/" + "RAxML_bestTree.T" + String.valueOf(j);
+            String tFile = _RAxMLdir  + "RAxML_bestTree.T" + String.valueOf(j);
             BufferedReader tReader = new BufferedReader(new FileReader(tFile));
             trees[j] = tReader.readLine().trim();
             tReader.close();
-            String llFile = _RAxMLdir +  Index  + "/" + "RAxML_info.T" + String.valueOf(j);
+            String llFile = _RAxMLdir + "RAxML_info.T" + String.valueOf(j);
             BufferedReader llReader = new BufferedReader(new FileReader(llFile));
             while(true){
                 String temp = llReader.readLine().trim();
@@ -1477,7 +1490,7 @@ public class InferOperator {
     //Input: #locus, #bestMSNum
     //Output: RAxML tree
     public Tree getbestGTi(int locusNum, int msTreeNum) throws IOException {
-        String gtFile = _RAxMLdir +  Index  + "/" + "RAxML_result.L" + String.valueOf(locusNum) + "T" + String.valueOf(msTreeNum);
+        String gtFile = _RAxMLdir  + "RAxML_result.L" + String.valueOf(locusNum) + "T" + String.valueOf(msTreeNum);
         BufferedReader gtReader = new BufferedReader(new FileReader(gtFile));
         String gtString = gtReader.readLine().trim();
         Tree bestGT = Trees.readTree(gtString);

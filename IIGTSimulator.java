@@ -40,6 +40,7 @@ public class IIGTSimulator {
     //private static int[] _numLocis = new int[] {32, 64, 128};
     private static double halfTheta;
     private static int iteration;
+    private static int RNum;
     private static String _DIR;
     private static String msPath;
     private static String seqGenePath;
@@ -47,25 +48,41 @@ public class IIGTSimulator {
     private static String SEQ_DIR;
 
 
-    IIGTSimulator(int numGT, double[] scales, int[] seqLens, double halfTheta, int t, String dir) {
+    IIGTSimulator(int numGT, double[] scales, int[] seqLens, double halfTheta, int t, String dir, int rNum) {
         this.numGTs = numGT;
         this._scales = scales;
         this._seqLens = seqLens;
         this.halfTheta = halfTheta;
         this.iteration = t;
+        this.RNum = rNum;
         _DIR = dir;
         msPath = _DIR + "tools/msFiles/msdir/ms";
         seqGenePath = _DIR + "tools/Seq-Gen.v1.3.3/source/seq-gen";
     }
 
     public static void main(String[] args) throws IOException, InterruptedException{
-        _seqLens = new int[] {50,100,200,400,600,800,1000};
-        IIGTSimulator simulator1 = new IIGTSimulator(200, _scales, _seqLens, 0.005, 10, "/Users/doriswang/PhyloNet/Data/IIG/");
+        _seqLens = new int[] {200,1000};
+        IIGTSimulator simulator1 = new IIGTSimulator(200, _scales, _seqLens, 0.005, 10, "/Users/doriswang/PhyloNet/",0);
 
 
         //TODO: CAUTION!!!
-        //simulator1.simulateSampleData();
-        checkTreeBias("/Users/doriswang/PhyloNet/Data/IIG/symmetrical1/0001/", 200, 16, _seqLens);
+        //16_symmetric
+        Network trueST =
+                Networks.readNetwork("((((1:1,2:1):1,(3:1,4:1):1):1,((5:1,6:1):1,(7:1,8:1):1):1):1,(((9:1,10:1):1,(11:1,12:1):1):1,((13:1,14:1):1,(15:1,16:1):1):1):1);");
+        trueST.getRoot().setName("s");
+//16_asymmetric
+        //Network trueST = Networks.readNetwork("(1:1,(2:1,(3:1,(4:1,(5:1,(6:1,(7:1,(8:1,(9:1,(10:1,(11:1,(12:1,(13:1,(14:1,(15:1,16:1):1):1):1):1):1):1):1):1):1):1):1):1):1):1);");
+        //trueST.getRoot().setName("as");
+//8_symmetric
+        // Network trueST = Networks.readNetwork("(((1:1,2:1):1,(3:1,4:1):1):1,((5:1,6:1):1,(7:1,8:1):1;");
+        //trueST.getRoot().setName("s");
+//8_asymmetric
+        // Network trueST = Networks.readNetwork("(1:1,(2:1,(3:1,(4:1,(5:1,(6:1,(7:1,8:1):1):1):1):1):1):1):1):1);");
+        //trueST.getRoot().setName("as");
+
+
+        String tempDir = simulator1.simulateSampleData(trueST);
+        checkTreeBias(tempDir, 200, 16, _seqLens);
 
 
 //        simulator1.simulateSeqByGTS(32, 1000, 0.005, "/Users/doriswang/PhyloNet/Data/17-taxon/001/ST0/1/Seq/");
@@ -84,6 +101,110 @@ public class IIGTSimulator {
 
     }
 
+    // can be changed
+    //one base pair for newSetting
+    // 2018.1.5
+    public static String simulateSampleData(Network trueST) {
+        List<String> trees = new ArrayList<String>();
+        int taxaNum = trueST.getLeafCount();
+        String topoName = trueST.getRoot().getName();
+        String tempDir = _DIR + "Data/IIG/newSetting/" + taxaNum + "/" + topoName + "/";
+        try {
+
+
+            if(halfTheta==0.0005)
+                tempDir += "0001/";
+            else
+                tempDir += "001/";
+            Iterator itNode = trueST.getTreeNodes().iterator();
+            while (itNode.hasNext()) {
+                NetNode n = (NetNode) itNode.next();
+                if (n == (NetNode) trueST.getRoot())
+                    continue;
+
+                NetNode p = (NetNode) n.getParents().iterator().next();
+                //double ratio = currentHeight - heightN;
+                if (n.getParentDistance(p) != TMutableNode.NO_DISTANCE) {
+                    n.setParentDistance(p, n.getParentDistance(p) ); // Coalescent_Unit = Tao /  theta/2
+                }
+            }
+
+            trees.add(trueST.toString());
+            //String folder = "" + iteration;
+            InferOperator operator = new InferOperator(tempDir,tempDir + "/output",0,RNum);
+
+
+            String seqDir = tempDir ;
+            String treeDir = tempDir + "Tree/";
+            operator.isExitsPath(seqDir);
+            operator.isExitsPath(treeDir);
+            BufferedWriter bw = new BufferedWriter(new FileWriter(treeDir + "trueST.txt"));
+            bw.write(trueST.toString() + "\n");
+            Map<String, List<String>> species2alleles = null;
+            List<Tree> trueGTs = simulateGeneTrees(trueST, species2alleles, numGTs);
+            for (int tid = 0; tid < numGTs; tid++) {
+                String gt = trueGTs.get(tid).toNewick();
+                trees.add(gt);
+                bw.write(gt + "\n");
+                try {
+                    String fileName = treeDir + "TrueGT_" + tid + ".tree";
+                    BufferedWriter out = new BufferedWriter(new FileWriter(fileName));
+                    out.write(gt + "\n");
+                    out.close();
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+                for (int seqLen : _seqLens) {
+                    String command = seqGenePath + " -mHKY -s" + halfTheta + " -l "
+                            + seqLen + " -on < " + treeDir + "TrueGT_" + tid + ".tree > "
+                            + seqDir + "seq_" + tid + "_" + seqLen + ".nex";
+                    //SEQ_DIR + "/" + iteration + "/seq_" + seqNum + "_" + seqLength +".nex";
+                    try {
+                        String fileName = seqDir + "seqgen_" + tid + "_" + seqLen + ".sh";
+                        BufferedWriter out = new BufferedWriter(new FileWriter(fileName));
+                        out.write(command + "\n");
+                        out.close();
+                        ProcessBuilder pb = new ProcessBuilder("/bin/bash", fileName);
+                        pb.redirectErrorStream(true);
+                        try {
+                            Process proc = pb.start();
+                            try {
+                                proc.waitFor();
+                            } catch (InterruptedException ex) {
+                                System.out.println(ex.getMessage());
+                            }
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                        }
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
+                }
+            }
+            bw.close();
+
+//                Network outputNet = getTrueST(scale);
+//                Networks.scaleNetwork(outputNet, halfTheta);
+//
+//                BufferedWriter bw2 = new BufferedWriter(new FileWriter(seqDir + "startNetGTs_" + iteration + ".txt"));
+//                bw2.write("[" + (halfTheta * 2) + "]" + outputNet.toString() + "\n");
+//
+//                for(Tree t : trueGTs) {
+//                    //Trees.rootAndRemoveOutgroup((STITree) t, "O");
+//                    Trees.scaleBranchLengths((STITree) t, halfTheta);
+//                    bw2.write(t.toString() + "\n");
+//                }
+//                bw2.close();
+
+
+        } catch (Exception ex) {
+            ex.printStackTrace();
+        }
+        return tempDir;
+    }
+
+
+
     //Input: gts, seqLen, halfTheta, seqPath
     //Output: seq files
     public static List<Tree> simulateSeqByGTS(int lociNum, int seqLen, double htheta, String seqPath) throws IOException, InterruptedException{
@@ -101,7 +222,7 @@ public class IIGTSimulator {
                 n.setParentDistance(p, n.getParentDistance(p) / 1000000); // scale to c_Unit
             }
         }
-        InferOperator ifo = new InferOperator(_DIR,_DIR + "output/",0);
+        InferOperator ifo = new InferOperator(_DIR,_DIR + "output/",0,RNum);
         ifo.isExitsPath(seqPath);
         BufferedWriter stbw = new BufferedWriter(new FileWriter(seqPath + "trueST.txt"));
         stbw.write(trueST.toString());
@@ -268,8 +389,9 @@ public class IIGTSimulator {
         return trees;
     }
 
+    //get the ILS of dataset
     public static List<String> checkTreeBias(String filePath, int lociNum, int taxaNum, int[] _seqLens) throws IOException, InterruptedException {
-        InferOperator operator = new InferOperator(_DIR,_DIR + "/output", 0);
+        InferOperator operator = new InferOperator(_DIR,_DIR + "/output", 0,RNum);
         List<String> trees = new ArrayList<String>();
         List<Tree> gts = new ArrayList<Tree>();
         String streeFile = filePath + "Tree/trueST.txt";
@@ -463,98 +585,6 @@ public class IIGTSimulator {
         return trees;
     }
 
-    public static List<String> simulateSampleData() {
-        List<String> trees = new ArrayList<String>();
-        try {
-//                Network trueST = Networks.readNetwork("((((1:1,2:1):1,(3:1,4:1):1):1,((5:1,6:1):1,(7:1,8:1):1):1):1,(((9:1,10:1):1,(11:1,12:1):1):1,((13:1,14:1):1,(15:1,16:1):1):1):1);");
-            Network trueST = Networks.readNetwork("(1:1,(2:1,(3:1,(4:1,(5:1,(6:1,(7:1,(8:1,(9:1,(10:1,(11:1,(12:1,(13:1,(14:1,(15:1,16:1):1):1):1):1):1):1):1):1):1):1):1):1):1):1);");
-
-                Iterator itNode = trueST.getTreeNodes().iterator();
-                while (itNode.hasNext()) {
-                    NetNode n = (NetNode) itNode.next();
-                    if (n == (NetNode) trueST.getRoot())
-                        continue;
-
-                    NetNode p = (NetNode) n.getParents().iterator().next();
-                    //double ratio = currentHeight - heightN;
-                    if (n.getParentDistance(p) != TMutableNode.NO_DISTANCE) {
-                        n.setParentDistance(p, n.getParentDistance(p) ); // Coalescent_Unit = Tao /  theta/2
-                    }
-                }
-
-                trees.add(trueST.toString());
-                //String folder = "" + iteration;
-                InferOperator operator = new InferOperator(_DIR,_DIR + "/output",0);
-
-
-                String seqDir = "/Users/doriswang/PhyloNet/Data/IIG/asymmetrical1/001/";
-                String treeDir = "/Users/doriswang/PhyloNet/Data/IIG/asymmetrical1/001/Tree/";
-                operator.isExitsPath(seqDir);
-                operator.isExitsPath(treeDir);
-                BufferedWriter bw = new BufferedWriter(new FileWriter(treeDir + "trueST.txt"));
-                bw.write(trueST.toString() + "\n");
-                Map<String, List<String>> species2alleles = null;
-                List<Tree> trueGTs = simulateGeneTrees(trueST, species2alleles, numGTs);
-                for (int tid = 0; tid < numGTs; tid++) {
-                    String gt = trueGTs.get(tid).toNewick();
-                    trees.add(gt);
-                    bw.write(gt + "\n");
-                    try {
-                        String fileName = treeDir + "TrueGT_" + tid + ".tree";
-                        BufferedWriter out = new BufferedWriter(new FileWriter(fileName));
-                        out.write(gt + "\n");
-                        out.close();
-                    } catch (Exception e) {
-                        e.printStackTrace();
-                    }
-                    for (int seqLen : _seqLens) {
-                        String command = seqGenePath + " -mHKY -s" + halfTheta + " -l "
-                                + seqLen + " -on < " + treeDir + "TrueGT_" + tid + ".tree > "
-                                + seqDir + "seq_" + tid + "_" + seqLen + ".nex";
-                        //SEQ_DIR + "/" + iteration + "/seq_" + seqNum + "_" + seqLength +".nex";
-                        try {
-                            String fileName = seqDir + "seqgen_" + tid + "_" + seqLen + ".sh";
-                            BufferedWriter out = new BufferedWriter(new FileWriter(fileName));
-                            out.write(command + "\n");
-                            out.close();
-                            ProcessBuilder pb = new ProcessBuilder("/bin/bash", fileName);
-                            pb.redirectErrorStream(true);
-                            try {
-                                Process proc = pb.start();
-                                try {
-                                    proc.waitFor();
-                                } catch (InterruptedException ex) {
-                                    System.out.println(ex.getMessage());
-                                }
-                            } catch (Exception e) {
-                                e.printStackTrace();
-                            }
-                        } catch (Exception e) {
-                            e.printStackTrace();
-                        }
-                    }
-                }
-                bw.close();
-
-//                Network outputNet = getTrueST(scale);
-//                Networks.scaleNetwork(outputNet, halfTheta);
-//
-//                BufferedWriter bw2 = new BufferedWriter(new FileWriter(seqDir + "startNetGTs_" + iteration + ".txt"));
-//                bw2.write("[" + (halfTheta * 2) + "]" + outputNet.toString() + "\n");
-//
-//                for(Tree t : trueGTs) {
-//                    //Trees.rootAndRemoveOutgroup((STITree) t, "O");
-//                    Trees.scaleBranchLengths((STITree) t, halfTheta);
-//                    bw2.write(t.toString() + "\n");
-//                }
-//                bw2.close();
-
-
-        } catch (Exception ex) {
-            ex.printStackTrace();
-        }
-        return trees;
-    }
 
 
     //INITIAL SPECIES TREE SETTING

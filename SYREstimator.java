@@ -117,7 +117,7 @@ public class SYREstimator {
         //TEST = true;
 
         _msdir = "/Users/doriswang/PhyloNet/tools/msFiles/msdir/ms";
-        _ASTRALdir = "/Users/doriswang/PhyloNet/tools/Astral/";
+        _ASTRALdir = "/Users/doriswang/PhyloNet/tools/Astral/0/";
         TREE_DIR = "/Users/doriswang/PhyloNet/Data/IIG/tree/";
         SEQ_DIR = "/Users/doriswang/PhyloNet/Data/IIG/seq/";
         RESULT_DIR = "/Users/doriswang/PhyloNet/Data/IIG/result/";
@@ -134,14 +134,14 @@ public class SYREstimator {
         FULL_LL = true;
         DATASET = "SYR";
         halfTheta = 0.001;//   1/2(10*e-2, 10*e-3)  0.0015(K) 0.002(Yang) need to init in ALL classes ||  theta -> POP_SIZE
-        lociNum = 38;
+        lociNum = 19;
         ifOutGroup = false;
 
         ogHeight = new double[2]; // og height from all initGT[min, max]
         refineGTSize = 30;
         _scales = new double[]{1.0};
         _seqLens = new int[]{665,525,420,260,260,469,796,296,220,262,256,194,447,849,798,522,267,274,471};
-        taxaNum = 20;
+        taxaNum = 21;
         ll_Ratio = 1.0; // P(seq|GT): p(GT|ST)
         gtsLL = new double[ITERATION];// LL(Seq|GTS)*(GTS|ST)
         // LL(Seq|GTS)*(GTS|ST) for pseudo version || not used for classic version
@@ -168,16 +168,17 @@ public class SYREstimator {
         //optGTSList = new ArrayList<List<Tree>>() ;
         STRATEGY = "RANDOM"; //RANDOM IMPROVE N
         //TODO Simulation
-        simulator = new IIGTSimulator(lociNum, _scales, _seqLens, halfTheta, ITERATION, "/Users/doriswang/PhyloNet/Data/IIG/");
-        operator = new InferOperator("/Users/doriswang/PhyloNet/Data/IIG/","/Users/doriswang/PhyloNet/Data/IIG/output",0);
+        simulator = new IIGTSimulator(lociNum, _scales, _seqLens, halfTheta, ITERATION, "/Users/doriswang/PhyloNet/Data/IIG/",0);
+        operator = new InferOperator("/Users/doriswang/PhyloNet/Data/IIG/","/Users/doriswang/PhyloNet/Data/IIG/output",0,0);
         String resultFolder = RESULT_DIR + ITERATION + "/" + taxaNum + "_" + lociNum + "/" + refineGTSize + "/";
         operator.isExitsPath(resultFolder);
+        trueSeq = new ArrayList<Alignment>();
         if (ISREALDATA) {
             if (DATASET.equals(("SYR"))) {
                 trueST = "((((((8,5),2),(4,1)),(7,(6,3))),((((10,11),9),(13,12)),(14,15))),((18,17),((19,20),16)));";
 //                trueGTS.add("(1:0.03798,(((((2:0.004797,9:0.003204,3:0.000806,4:0.000772,5:0.000810,6:0.000787,7:0.000786,10:0.000798):0.001607,8:0.002159):0.037802,(((11:0.000817,13:0.000808,14:0.000809):0.003299,(12:0.000806,15:0.000804,16:0.000819,17:0.000806):0.002343):0.002431,(18:0.000788,19:0.000807):0.001933):0.029201):0.032477,((20:0.000816,(21:0.000801,22:0.000811,23:0.000801):0.004790,24:0.000806):0.001593,25:0.001260):0.049365):0.076642):0.031080);");
 //                trueGTS.add("(1:0.03798,(((((2:0.004797,9:0.003204,3:0.000806,4:0.000772,5:0.000810,6:0.000787,7:0.000786,10:0.000798):0.001607,8:0.002159):0.037802,(((11:0.000817,13:0.000808,14:0.000809):0.003299,(12:0.000806,15:0.000804,16:0.000819,17:0.000806):0.002343):0.002431,(18:0.000788,19:0.000807):0.001933):0.029201):0.032477,((20:0.000816,(21:0.000801,22:0.000811,23:0.000801):0.004790,24:0.000806):0.001593,25:0.001260):0.049365):0.076642):0.031080);");
-                List<Alignment> fullAln = operator.loadSYRByRX(lociNum,_seqLens,taxaNum+1,trueSeq);
+                trueSeq = operator.loadSYRByRX(lociNum,_seqLens,taxaNum,trueSeq);
                 //TODO 9-11 load startTree?
                 for(int i = 0;i<lociNum;i++){
                     trueGTS.add("((((((8,5),2),(4,1)),(7,(6,3))),((((10,11),9),(13,12)),(14,15))),((18,17),((19,20),16)));");
@@ -199,6 +200,177 @@ public class SYREstimator {
 //                }
             }
         }
+    }
+
+        //fasttree + astral
+    public Tree iigtFA(List<Alignment> aln, int t) throws IOException, ParseException, InterruptedException {
+        List<Tree> fList = initSYRFasttree(_seqLens,19);
+        String ast = initAST(fList);
+        System.out.println(ast);
+        return Trees.readTree(ast);
+
+    }
+
+    //FastTree -gtr -nt < alignment.file > tree_file
+    public List<Tree> initSYRFasttree( int[] seqLen, int lociNum) throws IOException, ParseException, InterruptedException {
+        //writeSeq + partition     rm + raxml    read in
+        String _fastTree = "/Users/doriswang/PhyloNet/tools/FT/";
+
+        List<Tree> gts = new ArrayList<Tree>();
+        for (int i = 0; i < lociNum; i++) {
+            //System.out.println("No" + i + "Start...");
+            operator.isExitsPath(_fastTree + i );
+            BufferedWriter bw = new BufferedWriter(new FileWriter(_fastTree  + i + ".phy"));
+            Alignment temp = trueSeq.get(i);
+            Map<String, String> thisAln = temp.getAlignment();
+            int taxaNum = thisAln.size();
+            int len =  thisAln.get("12").length();
+            bw.write(taxaNum + " " + len + '\n');
+            for (int j = 0; j < taxaNum; j++) {
+                String name = temp.getTaxaNames().get(j);
+                String seq = thisAln.get(name);
+                bw.write(name + ' ' + seq + '\n');
+            }
+            bw.flush();
+            bw.close();
+            operator.isExitsPath(_fastTree );
+            String rm = "rm *.T" + i + '\n';
+            //./raxmlHPC-PTHREADS -M -m GTRGAMMA -p 12345 -# 10 -s 0/dna.phy -n T0
+            String command = _fastTree + "FastTree -gtr -nt < " + i + ".phy > " + i + ".T";
+            String cmdFile = _fastTree + "FastTree" + i + ".sh";
+            BufferedWriter cmd = new BufferedWriter(new FileWriter(cmdFile));
+            cmd.write("cd " + _fastTree.substring(0, _fastTree.length() - 1) + '\n');
+            cmd.write(rm);
+            cmd.flush();
+            cmd.write(command);
+            cmd.flush();
+            cmd.close();
+
+            ProcessBuilder pb = new ProcessBuilder("/bin/bash", cmdFile);
+            pb.redirectErrorStream(true);
+            try {
+                Process proc = pb.start();
+                try {
+                    proc.waitFor();
+                } catch (InterruptedException ex) {
+                    System.out.println(ex.getMessage());
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+        for (int i = 0; i < lociNum; i++) {
+            String outputFile = _fastTree + i + ".T";
+            BufferedReader out = new BufferedReader(new FileReader(outputFile));
+            //String gtString = gtReader.readLine().trim();
+            String stString = out.readLine().trim();
+            int index0 = 0;
+            int index1 = 1;
+            for(int j = 1; j< stString.length()-1;j++){
+                if(stString.charAt(j)!=')'){
+                    continue;
+                }
+                else if(stString.charAt(j+1)==':'){
+                    continue;
+                }
+                else{
+                    int offset = 1;
+                    boolean find = false;
+                    for(offset=1;offset<stString.length()-j;offset++){
+                        if(stString.charAt(offset+j)==':') {
+
+                            find = true;
+                            break;
+                        }
+                        else
+                            continue;
+                    }
+                    if(find){
+                        stString = stString.substring(0,j+1) + stString.substring(offset+j);
+                    }
+                }
+            }
+            gts.add(Trees.readTree(stString));
+            //System.out.println(stString);
+            out.close();
+        }
+        return gts;
+    }
+
+    public void compareEMFT(List<Tree> ftT) throws  IOException{
+        List<Tree> emT = new ArrayList<Tree>();
+        BufferedReader emReader = new BufferedReader(new FileReader("/Users/doriswang/Desktop/Results/SYR/SYR1/EMTrees.txt"));
+
+
+//        for (int i = 0; i < lociNum+ offset ; ln++) {
+//            String tree = stReader.readLine().trim();
+//            trees.add(tree);
+//        }
+
+    }
+
+    //input: rooted gts with OG
+    //output: rooted ST without OG
+    public String initAST(List<Tree> gts) throws IOException, ParseException {
+//        String command = "java -jar " + _ASTRALdir + "astral.4.11.1.jar -i /Users/doriswang/PhyloNet/tools/Astral/test_data/tempIn.tre -o /Users/doriswang/PhyloNet/tools/Astral/test_data/testOut.tre";
+
+        String command = "java -jar " + _ASTRALdir + "astral.4.11.1.jar -i " + _ASTRALdir + "test_data/tempIn.tre -o " + _ASTRALdir + "test_data/testOut.tre"; ///Users/doriswang/PhyloNet/tools/Astral/test_data/tempIn.tre -o /Users/doriswang/PhyloNet/tools/Astral/test_data/testOut.tre";
+
+        String cmdFile = _ASTRALdir + "tempCMD.sh";
+        BufferedWriter cmd = new BufferedWriter(new FileWriter(cmdFile));
+        cmd.write(command + '\n');
+        cmd.flush();
+        cmd.close();
+        String inputFile = _ASTRALdir + "test_data/tempIn.tre";
+        BufferedWriter in = new BufferedWriter(new FileWriter(inputFile));
+        Tree temp = gts.get(0);
+
+        //TODO: add weight
+        for (int i = 0; i < gts.size(); i++) {
+            in.write(gts.get(i).toString() + "\n");
+        }
+        in.flush();
+        in.close();
+        ProcessBuilder pb = new ProcessBuilder("/bin/bash", cmdFile);
+        pb.redirectErrorStream(true);
+        try {
+            Process proc = pb.start();
+            try {
+                proc.waitFor();
+            } catch (InterruptedException ex) {
+                System.out.println(ex.getMessage());
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        String outputFile = _ASTRALdir + "test_data/testOut.tre";
+        BufferedReader out = new BufferedReader(new FileReader(outputFile));
+        String stString = out.readLine().trim();
+        int index0 = 0;
+        int index1 = 1;
+        List<Integer> indexes = new ArrayList<Integer>();
+        for (int i = 1; i < stString.length(); i++) {
+            if (stString.charAt(index1) == ':') {
+                indexes.add(i);
+            }
+            index1++;
+        }
+        for (int i = 1; i <= indexes.size(); i++) {
+            index1 = indexes.get(indexes.size() - i);
+            for (int j = 1; j < stString.length(); j++) {
+                index0 = index1 - j;
+                if (stString.charAt(index0) == ')') {
+                    break;
+                } else
+                    index0--;
+            }
+            String newST = stString.substring(0, index0 + 1) + "I" + Integer.toString(i - 1) + stString.substring(index1);
+            stString = newST;
+        }
+        System.out.println("AST String :" + stString);
+
+        return stString;
     }
 
     //  Input: alignments & t
@@ -849,10 +1021,10 @@ public class SYREstimator {
     public static void main(String[] args) throws IOException, ParseException, InterruptedException {
 
         SYREstimator syr = new SYREstimator();
-        InferOperator operator = new InferOperator("/Users/doriswang/PhyloNet/Data/IIG/", "/Users/doriswang/PhyloNet/Data/IIG/output",0);
-        IIGTSimulator simulator1 = new IIGTSimulator(2, _scales, _seqLens, halfTheta, ITERATION, "/Users/doriswang/PhyloNet/Data/IIG/");
+        InferOperator operator = new InferOperator("/Users/doriswang/PhyloNet/", "/Users/doriswang/PhyloNet/",0,0);
+        IIGTSimulator simulator1 = new IIGTSimulator(2, _scales, _seqLens, halfTheta, ITERATION, "/Users/doriswang/PhyloNet/",0);
         //ast.initST(trueSeq);
-        syr.iigt(trueSeq,ITERATION);
+        syr.iigtFA(trueSeq,ITERATION);
         System.out.println("Finish");
     }
 

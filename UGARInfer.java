@@ -101,6 +101,8 @@ public class UGARInfer {
     private static int ITERATION; //{1k, 5k ,10k}
     private static boolean ISREALDATA;
     private static boolean FULL_LL;
+    private static boolean GET_MS_DETAIL;
+
     private static double halfTheta;//need to init in ALL classes ||  theta -> POP_SIZE
     private static Integer lociNum;
     private static Integer refineGTSize;
@@ -109,6 +111,7 @@ public class UGARInfer {
     private static int[] _seqLens;
     private static int taxaNum;
     private int itNum;// iteration number
+    private int endCounter;// iteration number
     private List<Tree> locusBestGTS;
     private double[] weights;
     private double ll_Ratio; // (For Expectation) : E = p(Seq|raxml_G) * ratio P(ms_G|ST)   because P(G|ST) is not accurate
@@ -147,15 +150,29 @@ public class UGARInfer {
     private double[] stDis;//ST_i for each iteration
     private double[] stRootedDis;//ST_i for each iteration
     private double[] gtDis; // GT_i for temp result(include rej)
-
+//
 
     //All parameters should be initialed here
-    UGARInfer(String inputPath, String outputPath, int index, double hTheta, int iteration, int lnum) throws IOException, InterruptedException, ParseException {
+    UGARInfer(String inputPath, String outputPath, int index, double hTheta, int iteration, int lnum, int rNum, int seqLength, int msSize) throws IOException, InterruptedException, ParseException {
 
+        String fTemp = "";
+        if (hTheta == 0.005) {
+                fTemp = "001";
+                //rNum = 1;
+//                if (lnum == 5 || lnum == 2)
+//                    rNum = 3;
+        } else {
+                fTemp = "0001";
+//                rNum = 2;
+//                if (lnum == 5 || lnum == 2)
+//                    rNum = 4;
+            }
         TREEINDEX = index*lnum;
+        endCounter = 0;
+        GET_MS_DETAIL = false;
         //index for program   TREEINDEX for inputData
         _msdir = inputPath + "tools/msFiles/msdir/ms"; ///home/yw58/IIG/tools/Astral/astral.4.11.1.jar
-        _ASTRALdir = inputPath + "tools/Astral/" + index+ "/";
+        _ASTRALdir = inputPath + "tools/Astral/" + rNum+ "/";
         RESULT_DIR = outputPath ;//"/Users/doriswang/PhyloNet/Data/IIG/result/" | home/yw58/IIG/output
         trueGTS = new ArrayList<String>();
         finalGTS = new ArrayList<Tree>();
@@ -173,17 +190,24 @@ public class UGARInfer {
         //ifOutGroup = false;
 
         //ogHeight = new double[3]; // og height from all initGT[min, max]
-        refineGTSize = 50;
+        refineGTSize = msSize;
         _scales = new double[]{1.0};
         _seqLens = new int[lnum];
         weights = new double[lnum];
+       // _seqLens = new int[]//{ 200, 200};
+               // { 200,200,200,200,200,200,200, 200, 200, 200};
+
+
+                //new double[]//{1,1};
+                //{1,1,1,1,1,1,1,1,1,1};
+//                new double[lnum];
         for(int i =0;i<lnum;i++){
-            _seqLens[i] = 1000;
+            _seqLens[i] = seqLength;
             weights[i] = 1;
         }
         //{1000,1000,1000,1000,1000};
                 //{200, 400,600,800,1000,200, 400,600, 800,1000};
-                //{ 200,200,200,200,200,1000, 1000, 1000, 1000, 1000};
+
         taxaNum = 16;
         ll_Ratio = 1.0; // P(seq|GT): p(GT|ST)
         ll_Ratio_Change = false;
@@ -206,20 +230,17 @@ public class UGARInfer {
         bestSTD = new ArrayList<Double>();
         STRATEGY = "RANDOM"; //RANDOM IMPROVE N
         //TODO Simulation
-        simulator = new IIGTSimulator(lociNum, _scales, _seqLens, halfTheta, ITERATION, inputPath);
-        operator = new InferOperator(inputPath,outputPath,index);
-        String fTemp = "";
-        if(halfTheta==0.005)
-            fTemp = "001";
-        else
-            fTemp = "0001";
-        OutDir = RESULT_DIR  + ITERATION +"/"+ fTemp + "/" + index + "/"; // output/0001/1/
+        simulator = new IIGTSimulator(lociNum, _scales, _seqLens, halfTheta, ITERATION, inputPath, rNum);
+        operator = new InferOperator(inputPath,outputPath,index, rNum);
+        operator.changeUpdateSh(lociNum,refineGTSize);
+        OutDir = RESULT_DIR  + fTemp + "/" + lociNum + "/" + ITERATION +"/"+ index + "/" + _seqLens[0] + "/" + msSize + "/"; // output/0001/1/
         operator.isExitsPath(OutDir);
         locusBestGTS = new ArrayList<Tree>();
         locusGTLL = new double[lociNum];
         //{1,2,3,4,5,1,2,3,4,5};
                 //{1,1,1,1,1,5,5,5,5,5};
         astInit = new double[6];
+        //"a/input/"
         List<String> trees = simulator.loadRandomTrees(inputPath + "input/" + fTemp + "/", lociNum, TREEINDEX);
         trueST = trees.get(0);
         //trueGTS = trees.subList(1, trees.size());
@@ -237,8 +258,8 @@ public class UGARInfer {
 
     public static void main(String[] args) throws IOException, ParseException, InterruptedException {
 
-        //UGARInfer ui = new UGARInfer(args[0],args[1],Integer.valueOf(args[2]),Double.valueOf(args[3]),Integer.valueOf(args[4]), Integer.valueOf(args[5]));
-        UGARInfer ui = new UGARInfer("/Users/doriswang/PhyloNet/","/Users/doriswang/PhyloNet/Data/IIG/result/",19,0.0005,2,10);
+        UGARInfer ui = new UGARInfer(args[0],args[1],Integer.valueOf(args[2]),Double.valueOf(args[3]),Integer.valueOf(args[4]), Integer.valueOf(args[5]),Integer.valueOf(args[6]),Integer.valueOf(args[7]),Integer.valueOf(args[8]));
+        //UGARInfer ui = new UGARInfer("/Users/doriswang/PhyloNet/","/Users/doriswang/PhyloNet/Data/IIG/result/",0,0.0005,30,2,0, 200);
 
         ui.infer(trueSeq, ITERATION);
         System.out.println("Finish");
@@ -289,12 +310,15 @@ public class UGARInfer {
 //            }
             tempST = refineGeneSet(tempST);
             itNum++;
+            endCounter++;
+            if(endCounter>10)
+                break;
         }
 
         long end = System.currentTimeMillis();
         long costtime = end - start;
         long astTime = start-start0;
-        String resultFolder = OutDir + lociNum + "/" ;
+        String resultFolder = OutDir ;
         operator.isExitsPath(resultFolder);
         BufferedWriter llOut1 = new BufferedWriter(new FileWriter(resultFolder + "RunningTime.txt"));
         llOut1.write("Running time:" + String.valueOf(costtime) + "\n");
@@ -363,13 +387,15 @@ public class UGARInfer {
                 out.flush();
             }
             out.close();
-            String fileName1 = resultFolder + "MSGTDistance_" + tid + ".txt";
-            BufferedWriter out1 = new BufferedWriter(new FileWriter(fileName1));
-            for (int it = 0; it < ITERATION; it++) {
-                out1.write(it + " " + msDist_Locus[it][tid] + "\n");
-                out1.flush();
+            if(GET_MS_DETAIL) {
+                String fileName1 = resultFolder + "MSGTDistance_" + tid + ".txt";
+                BufferedWriter out1 = new BufferedWriter(new FileWriter(fileName1));
+                for (int it = 0; it < ITERATION; it++) {
+                    out1.write(it + " " + msDist_Locus[it][tid] + "\n");
+                    out1.flush();
+                }
+                out1.close();
             }
-            out1.close();
         }
 
 
@@ -383,6 +409,7 @@ public class UGARInfer {
         bw2.write("Number of loci : " + lociNum + "\n");
         bw2.write("Number of refine gene tree set :  " + refineGTSize + "\n");
         bw2.write("Number of iteration :  " + ITERATION + "\n");
+        bw2.write("Number of ms Size :  " + refineGTSize + "\n");
         bw2.write("Seq lens are :  ");
         for(int i = 0 ; i< _seqLens.length; i++){
             bw2.write(_seqLens[i] + " ");
@@ -442,16 +469,17 @@ public class UGARInfer {
 
 
         BufferedWriter ldOut = new BufferedWriter(new FileWriter(resultFolder + "distance.txt"));
-        ldOut.write(astInit[1]+ ";" + "RF(AST_GT)" + "\n");
+
         ldOut.write(astInit[0] +  ";" + "RF(AST_ST)" + "\n");
+        ldOut.write(astInit[1]+ ";" + "RF(AST_GT)" + "\n");
         ldOut.write(astInit[2] +  ";" + "RF(GLASS_ST)" + "\n");
         ldOut.write(astInit[3] +  ";" + "RF(AST_ST by UPGMA)" + "\n");
-        ldOut.write(astInit[4] +  ";" + "RF(AST_WST by UPGMA)" + "\n");
+        //ldOut.write(astInit[4] +  ";" + "RF(AST_WST by UPGMA)" + "\n");
         String stDistance = "!!!!!!RF of Best ST : " + operator.getDistance(Trees.readTree(GLOBALBESTST), Trees.readTree(trueST));
-        ldOut.write(operator.getDistance(Trees.readTree(GLOBALBESTST), Trees.readTree(trueST)) + "\n");
+        ldOut.write(operator.getDistance(Trees.readTree(GLOBALBESTST), Trees.readTree(trueST)) + ";RF(EM)" + "\n");
         System.out.println(stDistance);
-        stDistance = "Rooted RF of Best ST : " + operator.getRootDistance(Trees.readTree(GLOBALBESTST), Trees.readTree(trueST));
-        ldOut.write(operator.getRootDistance(Trees.readTree(GLOBALBESTST), Trees.readTree(trueST)) + "\n");
+        stDistance = "Rooted_RF of Best ST : " + operator.getRootDistance(Trees.readTree(GLOBALBESTST), Trees.readTree(trueST));
+        ldOut.write(operator.getRootDistance(Trees.readTree(GLOBALBESTST), Trees.readTree(trueST)) + ";Rooted_RF(EM)" + "\n");
         System.out.println(stDistance);
         String gtDistance = "RF of GT_";
         double thisD = 0.0;
@@ -468,11 +496,11 @@ public class UGARInfer {
         Network bestLocusST = inferSTByAST(locusBestGTS);
         System.out.println( "RF of Best RAxML trees' ST : " + operator.getDistance(Trees.readTree(bestLocusST.toString()), Trees.readTree(trueST)));
         ldOut.write("RF of Best RAxML trees' ST : " + operator.getDistance(Trees.readTree(bestLocusST.toString()), Trees.readTree(trueST))+ "\n");
-        ldOut.write("Best RAxML trees' ST : " + bestLocusST.toString()+ "\n");
+        //ldOut.write("Best RAxML trees' ST : " + bestLocusST.toString()+ "\n");
 
-        bestLocusST = inferSTByWAST(locusBestGTS);
-        ldOut.write("RF of Best Weighted RAxML trees' ST : " + operator.getDistance(Trees.readTree(bestLocusST.toString()), Trees.readTree(trueST)));
-        ldOut.write("Rooted RF of Best Weighted RAxML trees' ST : " + operator.getRootDistance(Trees.readTree(bestLocusST.toString()), Trees.readTree(trueST))+ "\n");
+        //bestLocusST = inferSTByWAST(locusBestGTS);
+        //ldOut.write("RF of Best Weighted RAxML trees' ST : " + operator.getDistance(Trees.readTree(bestLocusST.toString()), Trees.readTree(trueST)));
+        //ldOut.write("Rooted RF of Best Weighted RAxML trees' ST : " + operator.getRootDistance(Trees.readTree(bestLocusST.toString()), Trees.readTree(trueST))+ "\n");
         totalD = 0.0;
         for (int k = 0; k < lociNum; k++) {
             thisD = operator.getDistance(locusBestGTS.get(k), Trees.readTree(trueGTS.get(k)));
@@ -512,10 +540,12 @@ public class UGARInfer {
         List<Tree> currentTopo = simulator.simulateGeneTrees(tempST, null, refineGTSize); //operator.MS
 
         List<Tree> msTopos = currentTopo;
-        System.out.println("ms: " + msTopos.get(0));
+        //System.out.println("ms: " + msTopos.get(0));
 
         // operator.getDistinguishedTopo(currentTopo);
-        operator.getMSDist(trueTopos, msTopos,msDist_Locus, itNum);
+        if(GET_MS_DETAIL)
+            operator.getMSDist(trueTopos, msTopos,msDist_Locus, itNum);
+
         List<Double> msTopoLL = operator.getGTSLLBySTYF(msTopos, tempST);
         System.out.println("msLL: " + msTopoLL.get(0));
         //TODO: involve p(gt|st)
@@ -566,14 +596,15 @@ public class UGARInfer {
             else {
                 double random = Math.random();
                 if (currentHLL > GLOBALBESTHLL) {
-                    if (random < 0.5)
+                    if (random < 0.95)
                         move = false;
                 } else if ((p2 - GLOBALBESTSTLL) > 0) {
-                    if (random < 0.75)
+                    if (random < 0.95)
                         move = false;
                 } else {
                     System.out.println("--------Random-Accept: #Iteration " + itNum + " : " + currentLL);
                     move = true;
+
                 }
             }
         }
@@ -595,6 +626,7 @@ public class UGARInfer {
             System.out.println("**********Accept ST  ");
             gtsLL[itNum] = currentLL;
             gtsHLL[itNum] = currentHLL;
+            endCounter = 0;
 
         } else {
             System.out.println("----------Reject MS GTS  ");
@@ -682,24 +714,27 @@ public class UGARInfer {
 
         Network ast = inferSTByAST(trees);
         astInit[2] = operator.getDistance(Constraint_ST, Trees.readTree(trueST)); // (RF Glass)
-        System.out.println("@@@@@AST distance(unrooted): " + operator.getDistance(Trees.readTree(ast.toString()), Trees.readTree(trueST)));
+
+        System.out.println("@@@@@AST init distance(unrooted): " + operator.getDistance(Trees.readTree(ast.toString()), Trees.readTree(trueST)));
         //   (RF AST)
         astInit[3] = operator.getDistance(Trees.readTree(ast.toString()), Trees.readTree(trueST));
         ast = inferSTByWAST(trees);
+
         INIT_ST = ast;
         // (RF wAST)
         astInit[4] =  operator.getDistance(Trees.readTree(ast.toString()), Trees.readTree(trueST));
-        System.out.println("@@@@@WAST distance(unrooted): " + operator.getDistance(Trees.readTree(ast.toString()), Trees.readTree(trueST)));
+        //TODO: add weight:
+        //System.out.println("@@@@@WAST distance(unrooted): " + operator.getDistance(Trees.readTree(ast.toString()), Trees.readTree(trueST)));
 
         List<Double> gtsllList = operator.getGTSLLBySTYF(trees, Networks.readNetwork(Constraint_ST.toString()));
         currentHLL = Double.NEGATIVE_INFINITY;
         currentLL = 0.0;
 
-        for (int i = 0; i < gtsllList.size(); i++) {
-            currentLL += gtsllList.get(i);
-            System.out.println("currentGTLL : " + gtsllList.get(i));
-
-        }
+//        for (int i = 0; i < gtsllList.size(); i++) {
+//            currentLL += gtsllList.get(i);
+//            System.out.println("currentGTLL : " + gtsllList.get(i));
+//
+//        }
         System.out.println("currentLL : " + currentLL);
         GLOBALBESTLL = Double.NEGATIVE_INFINITY;
         GLOBALBESTHLL = Double.NEGATIVE_INFINITY;
