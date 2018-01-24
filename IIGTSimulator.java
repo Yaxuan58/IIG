@@ -64,12 +64,14 @@ public class IIGTSimulator {
         _seqLens = new int[] {200,1000};
         IIGTSimulator simulator1 = new IIGTSimulator(200, _scales, _seqLens, 0.005, 10, "/Users/doriswang/PhyloNet/",0);
 
-
+        MutableTree temp = (MutableTree) Trees.readTree("(4:0.00100044536344327112,(7:0.00300428452660308522,((8:0.00100076359157705145,(6:0.00000100000050002909,5:0.00200121901424032619):0.00100045512565950963):0.00000100000050002909,(2:0.00000100000050002909,(3:0.00100045580006451131,(13:0.00100151443551630185,((12:0.00000100000050002909,14:0.00000100000050002909):0.00000100000050002909,((15:0.00000100000050002909,16:0.00000100000050002909):0.00000100000050002909,((10:0.00401241126375481271,11:0.00100154758744755868):0.00000100000050002909,9:0.00100173389821215579):0.00000100000050002909):0.00000100000050002909):0.00000100000050002909):0.00100102175320975211):0.00000100000050002909):0.00000100000050002909):0.00000100000050002909):0.00100078784797242074,1:0.00000100000050002909):0.0;");
+        temp.rerootTreeAtNode(temp.getNode("4"));
+        System.out.print(temp.toString());
         //TODO: CAUTION!!!
         //16_symmetric
-        Network trueST =
+       // Network trueST =
                 Networks.readNetwork("((((1:1,2:1):1,(3:1,4:1):1):1,((5:1,6:1):1,(7:1,8:1):1):1):1,(((9:1,10:1):1,(11:1,12:1):1):1,((13:1,14:1):1,(15:1,16:1):1):1):1);");
-        trueST.getRoot().setName("s");
+      //  trueST.getRoot().setName("s");
 //16_asymmetric
         //Network trueST = Networks.readNetwork("(1:1,(2:1,(3:1,(4:1,(5:1,(6:1,(7:1,(8:1,(9:1,(10:1,(11:1,(12:1,(13:1,(14:1,(15:1,16:1):1):1):1):1):1):1):1):1):1):1):1):1):1):1);");
         //trueST.getRoot().setName("as");
@@ -81,8 +83,8 @@ public class IIGTSimulator {
         //trueST.getRoot().setName("as");
 
 
-        String tempDir = simulator1.simulateSampleData(trueST);
-        checkTreeBias(tempDir, 200, 16, _seqLens);
+        //String tempDir = simulator1.simulateSampleData(trueST);
+        //checkTreeBias(tempDir, 200, 16, _seqLens);
 
 
 //        simulator1.simulateSeqByGTS(32, 1000, 0.005, "/Users/doriswang/PhyloNet/Data/17-taxon/001/ST0/1/Seq/");

@@ -258,8 +258,8 @@ public class UGARInfer {
 
     public static void main(String[] args) throws IOException, ParseException, InterruptedException {
 
-        UGARInfer ui = new UGARInfer(args[0],args[1],Integer.valueOf(args[2]),Double.valueOf(args[3]),Integer.valueOf(args[4]), Integer.valueOf(args[5]),Integer.valueOf(args[6]),Integer.valueOf(args[7]),Integer.valueOf(args[8]));
-        //UGARInfer ui = new UGARInfer("/Users/doriswang/PhyloNet/","/Users/doriswang/PhyloNet/Data/IIG/result/",0,0.0005,30,2,0, 200);
+        //UGARInfer ui = new UGARInfer(args[0],args[1],Integer.valueOf(args[2]),Double.valueOf(args[3]),Integer.valueOf(args[4]), Integer.valueOf(args[5]),Integer.valueOf(args[6]),Integer.valueOf(args[7]),Integer.valueOf(args[8]));
+        UGARInfer ui = new UGARInfer("/Users/doriswang/PhyloNet/","/Users/doriswang/PhyloNet/Data/IIG/result/",27,0.0005,30,1,0, 1000, 50);
 
         ui.infer(trueSeq, ITERATION);
         System.out.println("Finish");
