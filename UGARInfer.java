@@ -259,7 +259,7 @@ public class UGARInfer {
     public static void main(String[] args) throws IOException, ParseException, InterruptedException {
 
         //UGARInfer ui = new UGARInfer(args[0],args[1],Integer.valueOf(args[2]),Double.valueOf(args[3]),Integer.valueOf(args[4]), Integer.valueOf(args[5]),Integer.valueOf(args[6]),Integer.valueOf(args[7]),Integer.valueOf(args[8]));
-        UGARInfer ui = new UGARInfer("/Users/doriswang/PhyloNet/","/Users/doriswang/PhyloNet/Data/IIG/result/",27,0.0005,30,1,0, 1000, 50);
+        UGARInfer ui = new UGARInfer("/Users/doriswang/PhyloNet/","/Users/doriswang/PhyloNet/Data/IIG/result/",1,0.005,30,10,0, 200, 50);
 
         ui.infer(trueSeq, ITERATION);
         System.out.println("Finish");
@@ -279,11 +279,12 @@ public class UGARInfer {
             dist+=operator.getDistance(gts.get(i),Trees.readTree(trueGTS.get(i)));
         }
         astInit[1] = dist/gts.size();
-        System.out.println("AST init GT distance: " + astInit[1]);
+        System.out.println("AST  GT distance: " + astInit[1]);
 
         String n = initAST(gts);
         astInit[0] = operator.getDistance(Trees.readTree(n),Trees.readTree(trueST));
-        System.out.println("AST init ST distance: " + astInit[0]);
+        System.out.println("AST  ST distance: " + astInit[0]);
+        System.out.println("AST is " + n);
         long start = System.currentTimeMillis();
 
 
@@ -822,7 +823,7 @@ public class UGARInfer {
             String newST = stString.substring(0, index0 + 1) + "I" + Integer.toString(i - 1) + stString.substring(index1);
             stString = newST;
         }
-        System.out.println("AST String :" + stString);
+        //System.out.println("AST String :" + stString);
         Tree st0 = Trees.readTree(stString);
         st0 = addExternal(st0, Constraint_ST);
         st0 = rootST(st0);

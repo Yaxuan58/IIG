@@ -26,6 +26,7 @@ import edu.rice.cs.bioinfo.programs.phylonet.structs.tree.model.sti.STINode;
 import edu.rice.cs.bioinfo.programs.phylonet.structs.tree.model.sti.STITree;
 import edu.rice.cs.bioinfo.programs.phylonet.algos.MCMCseq.felsenstein.alignment.Alignment;
 import edu.rice.cs.bioinfo.programs.phylonet.algos.MCMCseq.start.distance.JCDistance;
+import edu.rice.cs.bioinfo.programs.phylonet.structs.tree.util.Bipartitions;
 import edu.rice.cs.bioinfo.programs.phylonet.structs.tree.util.Trees;
 import sun.nio.ch.Net;
 
@@ -85,7 +86,66 @@ public class InferOperator {
     public static void main(String[] args) throws  IOException, InterruptedException, ParseException{
 
         InferOperator ifo = new InferOperator("/Users/doriswang/PhyloNet/", "/Users/doriswang/PhyloNet/output",0,0);
-        ifo.changeUpdateSh(100,100);
+
+        //Users/doriswang/Desktop/output/001/10/50/5/1000/50
+        //Users/doriswang/Desktop/output/001/2/50/1/1000/GlobalBestTrees.txt
+
+        //ifo.gtOutfitChecker("/Users/doriswang/Desktop/output/0001/10/50/", ifo.InputPath + "input/0001/", 10, 10);
+        UGARInfer ui = new UGARInfer("/Users/doriswang/PhyloNet/","/Users/doriswang/PhyloNet/Data/IIG/result/",1,0.005,50,5,0, 1000, 50);
+        int lociNum = 10;
+        int fileNum = 20;
+        Tree ast ;
+        String filePath = "/Users/doriswang/Treefix/venv/treefix-1.1.10/s16/";
+        double[] d = new double[fileNum+1];
+        Tree trueST = Trees.readTree("((((1:1,2:1):1,(3:1,4:1):1):1,((5:1,6:1):1,(7:1,8:1):1):1):1,(((9:1,10:1):1,(11:1,12:1):1):1,((13:1,14:1):1,(15:1,16:1):1):1):1);");
+        double temp = 0.0;
+        for(int i = 0; i< fileNum;i++){
+            List<Tree> tfTrees = new ArrayList<Tree>();
+            for (int ln = 0; ln < lociNum; ln++) {
+                int fileIndex = i*lociNum + ln;
+                String tree = Treefix.readToString(filePath+fileIndex +"/0.nt.raxml.treefix.tree");
+                Tree t = Trees.readTree(tree);
+                tfTrees.add(t);
+            }
+           ast =  Trees.readTree(ui.initAST(tfTrees));
+           d[i] = ifo.getDistance(ast,trueST);
+
+            temp+=d[i];
+        }
+        for(int i = 0;i<fileNum;i++){
+            System.out.println(d[i]);
+        }
+        d[fileNum] = temp/fileNum;
+        System.out.println(d[fileNum]);
+//        List iSTs = loadISTrees("/Users/doriswang/Desktop/output/0001/2/50/",2, 100);
+//
+//        List subTrees = new ArrayList<Tree>();
+//        subTrees.add(Trees.readTree("(1,2)"));
+//        subTrees.add(Trees.readTree("(3,4)"));
+//        subTrees.add(Trees.readTree("(5,6)"));
+//        subTrees.add(Trees.readTree("(7,8)"));
+//        subTrees.add(Trees.readTree("(9,10)"));
+//        subTrees.add(Trees.readTree("(11,12)"));
+//        subTrees.add(Trees.readTree("(13,14)"));
+//        subTrees.add(Trees.readTree("(15,16)"));
+//        subTrees.add(Trees.readTree("((1,2),(3,4))"));
+//        subTrees.add(Trees.readTree("((5,6),(7,8))"));
+//        subTrees.add(Trees.readTree("((9,10),(11,12))"));
+//        subTrees.add(Trees.readTree("((13,14),(15,16))"));
+//        subTrees.add(Trees.readTree("(((1,2),(3,4)),((5,6),(7,8)))"));
+//        subTrees.add(Trees.readTree("(((9,10),(11,12)),((13,14),(15,16)))"));
+//        subTrees.add(Trees.readTree("((((1,2),(3,4)),((5,6),(7,8))),(((9,10),(11,12)),((13,14),(15,16))))"));
+//
+//
+//
+//        double[] d = ifo.MCMCCompare(iSTs,subTrees);
+//
+//        ////ifo.isTopoExist(t1,t2);
+//        Tree temp = Trees.readTree("((((16:1.0,15:1.0):1.0,(14:1.0,13:1.0):1.0):1.0,((12:1.0,11:1.0):1.0,(10:1.0,9:1.0):1.0):1.0):1.0,(((8:1.0,7:1.0):1.0,(6:1.0,5:1.0):1.0):1.0,((4:1.0,3:1.0):1.0,(2:1.0,1:1.0):1.0):1.0):1.0);");
+//        for(int i = 0;i<d.length;i++){
+//            System.out.println(i + " : " + d[i]);
+
+        //ifo.changeUpdateSh(100,100);
 //        double[] ll = new double[50];
 //        String[] trees = new String[50];
 //        ifo.getInitTree(trees, ll, 50);
@@ -131,6 +191,274 @@ public class InferOperator {
 //            trueSeq.add(aln);
 //            fullSeq.add(fullAln);
         }
+
+
+    public void gtOutfitChecker(String iPath, String tPath, int lociNum, int fileNum) throws IOException {
+        List<Tree> iGTs = loadIGTrees(iPath,lociNum, fileNum);
+        List<Tree> tGTs = new ArrayList<Tree>();
+        String streeFile = tPath + "Tree/trueST.txt";
+        BufferedReader stReader = new BufferedReader(new FileReader(streeFile));
+        Tree trueST = Trees.readTree((String) stReader.readLine().trim());
+
+        for (int ln = 0; ln < lociNum*fileNum; ln++) {
+            tGTs.add(Trees.readTree(stReader.readLine().trim()));
+        }
+        stReader.close();
+        double[] d = this.getDistances(iGTs,tGTs,fileNum*lociNum);
+
+        BufferedWriter w = new BufferedWriter(new FileWriter(iPath  + "/distanceGEMS_GT.txt"));
+        for(int i = 0;i<d.length;i++){
+            w.write(i + ":" + d[i] + "\n");
+            w.flush();
+        }
+
+        w.close();
+        System.out.println("GEMS_Distance_GT:" + d[fileNum*lociNum]);
+
+        double temp = 0.0;
+        BufferedWriter w1 = new BufferedWriter(new FileWriter(iPath + "/" + lociNum + "/distanceGEMS_ST.txt"));
+        for(int i = 0;i<lociNum*fileNum;i++){
+
+            w1.write(i + ":" + this.getDistance(trueST,iGTs.get(i)) + "\n");
+            temp += this.getDistance(trueST,iGTs.get(i));
+            w1.flush();
+        }
+        w1.write(lociNum*fileNum + ":" + temp/(lociNum*fileNum));
+        w1.flush();
+        w1.close();
+
+        System.out.println("GEMS_Distance_ST:" + temp/(lociNum*fileNum));
+
+
+    }
+
+    public double[] getDistances(List<Tree> l1, List<Tree> l2, int lociNum) throws IOException {
+        Double dist = 0.0;
+        double d[] = new double[lociNum + 1];
+
+        for(int i = 0; i<l1.size(); i++){
+            d[i] = this.getDistance(l1.get(i), l2.get(i));
+            dist += this.getDistance(l1.get(i), l2.get(i));
+        }
+        d[lociNum] = dist/lociNum;
+        return d;
+    }
+
+    //check the ratio: #true subtrees in inferred trees
+    public void MCMC_Compare() throws IOException {
+        List iSTs = loadISTrees("/Users/doriswang/Desktop/output/0001/2/50/",2, 100);
+
+        List subTrees = new ArrayList<Tree>();
+        subTrees.add(Trees.readTree("(1,2)"));
+        subTrees.add(Trees.readTree("(3,4)"));
+        subTrees.add(Trees.readTree("(5,6)"));
+        subTrees.add(Trees.readTree("(7,8)"));
+        subTrees.add(Trees.readTree("(9,10)"));
+        subTrees.add(Trees.readTree("(11,12)"));
+        subTrees.add(Trees.readTree("(13,14)"));
+        subTrees.add(Trees.readTree("(15,16)"));
+        subTrees.add(Trees.readTree("((1,2),(3,4))"));
+        subTrees.add(Trees.readTree("((5,6),(7,8))"));
+        subTrees.add(Trees.readTree("((9,10),(11,12))"));
+        subTrees.add(Trees.readTree("((13,14),(15,16))"));
+        subTrees.add(Trees.readTree("(((1,2),(3,4)),((5,6),(7,8)))"));
+        subTrees.add(Trees.readTree("(((9,10),(11,12)),((13,14),(15,16)))"));
+        subTrees.add(Trees.readTree("((((1,2),(3,4)),((5,6),(7,8))),(((9,10),(11,12)),((13,14),(15,16))))"));
+
+
+        double[] d = this.MCMCCompare(iSTs,subTrees);
+
+        ////ifo.isTopoExist(t1,t2);
+        Tree temp = Trees.readTree("((((16:1.0,15:1.0):1.0,(14:1.0,13:1.0):1.0):1.0,((12:1.0,11:1.0):1.0,(10:1.0,9:1.0):1.0):1.0):1.0,(((8:1.0,7:1.0):1.0,(6:1.0,5:1.0):1.0):1.0,((4:1.0,3:1.0):1.0,(2:1.0,1:1.0):1.0):1.0):1.0);");
+        for(int i = 0;i<d.length;i++){
+            System.out.println(i + " : " + d[i]);
+        }
+    }
+
+    public static List<Tree> loadISTrees(String filePath,int lociNum, int treeNum) throws IOException {
+        List<Tree> iST = new ArrayList<Tree>();
+        for (int ln = 0; ln < treeNum; ln++) {
+            String streeFile = "";
+            if(lociNum == 2)
+                 streeFile = filePath + ln + "/1000/GlobalBestTrees.txt";
+            else if(lociNum == 10){
+                streeFile = filePath + ln + "/1000/50/GlobalBestTrees.txt";
+            }
+            BufferedReader stReader = new BufferedReader(new FileReader(streeFile));
+            Tree ist = Trees.readTree(stReader.readLine().trim().split(": ")[1]);
+            iST.add(ist);
+        }
+        return iST;
+    }
+
+    public static List<Tree> loadIGTrees(String filePath,int lociNum, int treeNum) throws IOException {
+        List<Tree> iGT = new ArrayList<Tree>();
+        for (int ln = 0; ln < treeNum; ln++) {
+            String streeFile = "";
+            if(lociNum == 2)
+                streeFile = filePath + ln + "/1000/GlobalBestTrees.txt";
+            else if(lociNum == 10){
+                //                streeFile = filePath + ln + "/600/50/GlobalBestTrees.txt";
+
+                streeFile = filePath + ln + "/1000/50/GlobalBestTrees.txt";
+            }
+            BufferedReader stReader = new BufferedReader(new FileReader(streeFile));
+            Tree igt = Trees.readTree(stReader.readLine().trim().split(": ")[1]);
+            igt = Trees.readTree(stReader.readLine().trim().split(": ")[1]);
+            iGT.add(igt);
+            for(int i = 1;i<lociNum;i++){
+                igt = Trees.readTree(stReader.readLine().trim());
+                iGT.add(igt);
+            }
+            stReader.close();
+        }
+        return iGT;
+    }
+
+    public TNode getFatherNode(TNode n1, TNode n2){
+        TNode big;
+        TNode small;
+        int l1 = n1.getLeafCount();
+        int l2 = n2.getLeafCount();
+        if(l1>=l2) {
+            big = n1;
+            small = n2;
+        }
+        else{
+            big = n2;
+            small = n1;
+        }
+        l1 = 0;
+        boolean contain = true;
+        List<String> smallList = new ArrayList<String>();
+        List<String> bigList = new ArrayList<String>();
+        Iterator it = small.getLeaves().iterator();
+        while(it.hasNext()){
+            String name = ((TNode)it.next()).getName();
+            smallList.add(name);
+        }
+        it = big.getLeaves().iterator();
+        while(it.hasNext()){
+            String name = ((TNode)it.next()).getName();
+            bigList.add(name);
+        }
+        for(int i = 0; i< smallList.size();i++){
+            if(bigList.contains(smallList.get(i)))
+                continue;
+            else {
+                contain = false;
+                break;
+            }
+        }
+        if(contain)
+            return big;
+        else
+            return getFatherNode(big.getParent(),small);
+    }
+
+    public TNode getListFatherNode(List<TNode> nodes, Tree iST){
+
+        TNode first = nodes.get(0);
+        TNode tempFather = first;
+        for(int i = 1;i<nodes.size();i++){
+            TNode next = nodes.get(i);
+            tempFather = getFatherNode(next, tempFather);
+        }
+
+        return tempFather;
+    }
+
+
+    public boolean isTopoExist(Tree iST, Tree subTree){
+
+        String[] subNodes = subTree.getLeaves();
+        List<TNode> nodes = new ArrayList<TNode>();
+        for(int i =0;i<subNodes.length;i++){
+            nodes.add(iST.getNode(subNodes[i]));
+        }
+        //find most smallest father node in iST for subNodes
+        TNode t = getListFatherNode(nodes, iST);
+
+        boolean isSameName = (subNodes.length==t.getLeafCount());
+        boolean contain = true;
+        if(!isSameName)
+            return false;
+
+        else {
+            contain = true;
+            List<String> list = new ArrayList<String>();
+            Iterator it = t.getLeaves().iterator();
+            while(it.hasNext()){
+                String name = ((TNode)it.next()).getName();
+                list.add(name);
+            }
+
+            for(int j = 0; j < list.size();j++){
+                if(list.contains(subNodes[j]))
+                    continue;
+                else {
+                    contain = false;
+                    break;
+                }
+            }
+        }
+        return contain;
+    }
+
+
+    public boolean isSubTreeExist(TNode lNode, TNode rNode){
+
+        TNode l = getNeighbor(lNode);
+        TNode r = getNeighbor(rNode);
+
+        if(l.isLeaf())
+            return (l.getName()==r.getName());
+        else if(r.isLeaf())
+            return false;
+        else
+            return isSubTreeExist(l,r);
+    }
+
+    public TNode getNeighbor(TNode n){
+
+
+        TNode parent = n.getParent();
+        TNode temp;
+        TNode neighbor = n;
+        Iterator it = parent.getChildren().iterator();
+        temp = (TNode)it.next();
+        if(temp.getID() == n.getID())
+            neighbor = (TNode)it.next();
+
+        return neighbor;
+    }
+
+    public double[] MCMCCompare(List<Tree> iSTs, List<Tree> subTrees){
+        double[] p = new double[subTrees.size()];
+        int[][] counter = new int [iSTs.size()][subTrees.size()];
+        for(int i = 0; i<iSTs.size();i++){
+            Tree t = iSTs.get(i);
+            for(int j = 0;j<subTrees.size();j++){
+                if(isTopoExist(t,subTrees.get(j)))
+                    counter[i][j] = 1;
+
+                else
+                    counter[i][j] = 0;
+            }
+        }
+        double sum = 0;
+        for(int j = 0; j < subTrees.size();j++){
+            sum = 0;
+            for(int i = 0;i<iSTs.size();i++){
+                sum += counter[i][j];
+            }
+
+            p[j] = sum/iSTs.size();
+
+        }
+
+        return p;
+    }
 //        String streeFile = "/Users/doriswang/PhyloNet/Data/17-taxon/004/ST1/1/Tree/trueST.txt";
 //        BufferedReader stReader = new BufferedReader(new FileReader(streeFile));
 //        String trueST = (String) stReader.readLine().trim();
@@ -724,6 +1052,7 @@ public class InferOperator {
 
         return alns;
     }
+
 
     public static ArrayList<File> getListFiles(Object obj) {
         File directory = null;
