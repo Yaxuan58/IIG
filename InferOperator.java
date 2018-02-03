@@ -90,33 +90,7 @@ public class InferOperator {
         //Users/doriswang/Desktop/output/001/10/50/5/1000/50
         //Users/doriswang/Desktop/output/001/2/50/1/1000/GlobalBestTrees.txt
 
-        //ifo.gtOutfitChecker("/Users/doriswang/Desktop/output/0001/10/50/", ifo.InputPath + "input/0001/", 10, 10);
-        UGARInfer ui = new UGARInfer("/Users/doriswang/PhyloNet/","/Users/doriswang/PhyloNet/Data/IIG/result/",1,0.005,50,5,0, 1000, 50);
-        int lociNum = 10;
-        int fileNum = 20;
-        Tree ast ;
-        String filePath = "/Users/doriswang/Treefix/venv/treefix-1.1.10/s16/";
-        double[] d = new double[fileNum+1];
-        Tree trueST = Trees.readTree("((((1:1,2:1):1,(3:1,4:1):1):1,((5:1,6:1):1,(7:1,8:1):1):1):1,(((9:1,10:1):1,(11:1,12:1):1):1,((13:1,14:1):1,(15:1,16:1):1):1):1);");
-        double temp = 0.0;
-        for(int i = 0; i< fileNum;i++){
-            List<Tree> tfTrees = new ArrayList<Tree>();
-            for (int ln = 0; ln < lociNum; ln++) {
-                int fileIndex = i*lociNum + ln;
-                String tree = Treefix.readToString(filePath+fileIndex +"/0.nt.raxml.treefix.tree");
-                Tree t = Trees.readTree(tree);
-                tfTrees.add(t);
-            }
-           ast =  Trees.readTree(ui.initAST(tfTrees));
-           d[i] = ifo.getDistance(ast,trueST);
 
-            temp+=d[i];
-        }
-        for(int i = 0;i<fileNum;i++){
-            System.out.println(d[i]);
-        }
-        d[fileNum] = temp/fileNum;
-        System.out.println(d[fileNum]);
 //        List iSTs = loadISTrees("/Users/doriswang/Desktop/output/0001/2/50/",2, 100);
 //
 //        List subTrees = new ArrayList<Tree>();
@@ -192,6 +166,38 @@ public class InferOperator {
 //            fullSeq.add(fullAln);
         }
 
+    // For Treefix: Check the RF_distance (trueST, TF_AST_ST)
+    // Paras: UGARInfer ui = new UGARInfer("/Users/doriswang/PhyloNet/","/Users/doriswang/PhyloNet/Data/IIG/result/",1,0.005,50,5,0, 1000, 50);
+    public void gtOutfitChecker(UGARInfer ui) throws IOException, ParseException {
+        int lociNum = 10;
+        int fileNum = 20;
+        Tree ast;
+        String filePath = "/Users/doriswang/Treefix/venv/treefix-1.1.10/s16/";
+        double[] d = new double[fileNum + 1];
+        Tree trueST = Trees.readTree("((((1:1,2:1):1,(3:1,4:1):1):1,((5:1,6:1):1,(7:1,8:1):1):1):1,(((9:1,10:1):1,(11:1,12:1):1):1,((13:1,14:1):1,(15:1,16:1):1):1):1);");
+        double temp = 0.0;
+        for (int i = 0; i < fileNum; i++) {
+            List<Tree> tfTrees = new ArrayList<Tree>();
+            for (int ln = 0; ln < lociNum; ln++) {
+                int fileIndex = i * lociNum + ln;
+                String tree = Treefix.readToString(filePath + fileIndex + "/0.nt.raxml.treefix.tree");
+                Tree t = Trees.readTree(tree);
+                tfTrees.add(t);
+            }
+            ast = Trees.readTree(ui.initAST(tfTrees));
+            d[i] = this.getDistance(ast, trueST);
+
+            temp += d[i];
+        }
+        for (int i = 0; i < fileNum; i++) {
+            System.out.println(d[i]);
+        }
+        d[fileNum] = temp / fileNum;
+        System.out.println(d[fileNum]);
+    }
+
+    // For GEMS: Check the RF_distance (trueGT, GEMS_GT) and (trueST, GEMS_GT)
+    // Paras:  ifo.gtOutfitChecker("/Users/doriswang/Desktop/output/0001/10/50/", ifo.InputPath + "input/0001/", 10, 10);
 
     public void gtOutfitChecker(String iPath, String tPath, int lociNum, int fileNum) throws IOException {
         List<Tree> iGTs = loadIGTrees(iPath,lociNum, fileNum);
@@ -244,7 +250,8 @@ public class InferOperator {
         return d;
     }
 
-    //check the ratio: #true subtrees in inferred trees
+    // Compare with MCMC(Yang 2017)
+    // Check the ratio: ( #true subtree appear / #inferred trees )
     public void MCMC_Compare() throws IOException {
         List iSTs = loadISTrees("/Users/doriswang/Desktop/output/0001/2/50/",2, 100);
 
