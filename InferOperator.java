@@ -83,98 +83,32 @@ public class InferOperator {
 
         return success;
     }
-    public static void main(String[] args) throws  IOException, InterruptedException, ParseException{
+    public static void main(String[] args) throws  IOException, InterruptedException, ParseException {
 
-        InferOperator ifo = new InferOperator("/Users/doriswang/PhyloNet/", "/Users/doriswang/PhyloNet/output",0,0);
+        InferOperator ifo = new InferOperator("/Users/doriswang/PhyloNet/", "/Users/doriswang/PhyloNet/output", 0, 0);
 
         //Users/doriswang/Desktop/output/001/10/50/5/1000/50
         //Users/doriswang/Desktop/output/001/2/50/1/1000/GlobalBestTrees.txt
-
-
-//        List iSTs = loadISTrees("/Users/doriswang/Desktop/output/0001/2/50/",2, 100);
-//
-//        List subTrees = new ArrayList<Tree>();
-//        subTrees.add(Trees.readTree("(1,2)"));
-//        subTrees.add(Trees.readTree("(3,4)"));
-//        subTrees.add(Trees.readTree("(5,6)"));
-//        subTrees.add(Trees.readTree("(7,8)"));
-//        subTrees.add(Trees.readTree("(9,10)"));
-//        subTrees.add(Trees.readTree("(11,12)"));
-//        subTrees.add(Trees.readTree("(13,14)"));
-//        subTrees.add(Trees.readTree("(15,16)"));
-//        subTrees.add(Trees.readTree("((1,2),(3,4))"));
-//        subTrees.add(Trees.readTree("((5,6),(7,8))"));
-//        subTrees.add(Trees.readTree("((9,10),(11,12))"));
-//        subTrees.add(Trees.readTree("((13,14),(15,16))"));
-//        subTrees.add(Trees.readTree("(((1,2),(3,4)),((5,6),(7,8)))"));
-//        subTrees.add(Trees.readTree("(((9,10),(11,12)),((13,14),(15,16)))"));
-//        subTrees.add(Trees.readTree("((((1,2),(3,4)),((5,6),(7,8))),(((9,10),(11,12)),((13,14),(15,16))))"));
-//
-//
-//
-//        double[] d = ifo.MCMCCompare(iSTs,subTrees);
-//
-//        ////ifo.isTopoExist(t1,t2);
-//        Tree temp = Trees.readTree("((((16:1.0,15:1.0):1.0,(14:1.0,13:1.0):1.0):1.0,((12:1.0,11:1.0):1.0,(10:1.0,9:1.0):1.0):1.0):1.0,(((8:1.0,7:1.0):1.0,(6:1.0,5:1.0):1.0):1.0,((4:1.0,3:1.0):1.0,(2:1.0,1:1.0):1.0):1.0):1.0);");
-//        for(int i = 0;i<d.length;i++){
-//            System.out.println(i + " : " + d[i]);
-
-        //ifo.changeUpdateSh(100,100);
-//        double[] ll = new double[50];
-//        String[] trees = new String[50];
-//        ifo.getInitTree(trees, ll, 50);
-        //RawDataProcessor r = new RawDataProcessor();
-        //String t = r.addTaxonName("(((19:0.00100000050002909,20:0.00100000050002909)I16:1.152946639631439,(16:0.4096753842384416,(18:0.00100000050002909,17:0.00100000050002909)I15:0.4086753837384125)I14:0.15927194422111118)I13:0.845163387858571,(((9:0.4456858217614752,(11:0.00100000050002909,10:0.00100000050002909)I11:0.4446858212614461)I10:0.2592441371312471,((15:0.00100000050002909,12:0.00100000050002909)I9:0.025201791973950474,(14:0.00100000050002909,13:0.00100000050002909)I8:0.12644601676689493)I7:0.07312226482896261)I6:0.4433325706515572,(3:0.2118922703896251,(2:0.20397143689818112,((1:0.00100000050002909,8:0.00100000050002909)I2:0.04122271582395445,((4:0.00100000050002909,5:0.00100000050002909)I17:0.08989500411654797,(6:0.00100000050002909,7:0.00100000050002909)I18:0.1380665477899139)I0:0.0)I1:0.06490488860823812)I3:0.007920833491443997)I4:1.0803345097601746)I5:0.3048617690139027)I12;");
-        //System.out.println(t);
-        //r.doubleMap();
-//        String[] gts = ifo.getRAxMLStartT(38);
-//        System.out.println(gts[37]);
-//        int[] t1 = new int[]{665,525,420,260,260,469,796,296,220,262,256,194,447,849,798,522,267,274,471};
-//        ifo.loadSYR(2, t1, 26, new ArrayList<Alignment>());
-
-
-//        String[] taxaName = new String[taxaNum];
-//        for (int i = 0; i < taxaNum; i++) {
-//            line = new String[seqLength.length];
-//            taxaName[i] = (String) br.readLine().trim().split(":")[0];
-//            String temp = (String) br.readLine().trim().split(":")[1];
-//            if (temp.length() < 8000)
-//                System.err.println("Loading failed at : " + i);
-//            int index = 0;
-//            for (int j = 0; j < seqLength.length; j++) {
-//                int len = seqLength[j];
-//                if (j == seqLength[j] - 1)
-//                    line[j] = temp.substring(index);
-//                else {
-//                    line[j] = temp.substring(index, index + len);
-//                    index += len;
-//                }
-//            }
-//            strArray.add(line);
-//        }
-//        for(int i = 0; i < seqLength.length; i++){
-//            locus = new HashMap<String, String>();
-//            fullLocus = new HashMap<String, String>();
-//            for(int j = 0; j< taxaNum; j++){
-//                locus.put(taxaName[j], strArray.get(i)[j]);
-//                fullLocus.put(taxaName[j], strArray.get(i)[j]);
-//            }
-//            locus.remove("0");
-//            Alignment fullAln = new Alignment(fullLocus);
-//            Alignment aln = new Alignment(locus);
-//            trueSeq.add(aln);
-//            fullSeq.add(fullAln);
-        }
+        //        ifo.MCMC_Compare();
+        //ifo.gtOutfitChecker();
+        ifo.gtOutfitChecker("/Users/doriswang/Treefix/venv/treefix-1.1.10/s16/symmetricDist/200_0001_TFTrees.txt");
+        //ifo.gtOutfitChecker("/Users/doriswang/Desktop/output/0001/10/50/", ifo.InputPath + "input/0001/", 10, 10, 200);
+        ///Users/doriswang/Treefix/venv/treefix-1.1.10/s16/a-AsmtTrees/1000_001_TFTrees.txt
+    }
 
     // For Treefix: Check the RF_distance (trueST, TF_AST_ST)
     // Paras: UGARInfer ui = new UGARInfer("/Users/doriswang/PhyloNet/","/Users/doriswang/PhyloNet/Data/IIG/result/",1,0.005,50,5,0, 1000, 50);
-    public void gtOutfitChecker(UGARInfer ui) throws IOException, ParseException {
+    public void gtOutfitChecker() throws IOException, ParseException {
         int lociNum = 10;
         int fileNum = 20;
         Tree ast;
         String filePath = "/Users/doriswang/Treefix/venv/treefix-1.1.10/s16/";
         double[] d = new double[fileNum + 1];
-        Tree trueST = Trees.readTree("((((1:1,2:1):1,(3:1,4:1):1):1,((5:1,6:1):1,(7:1,8:1):1):1):1,(((9:1,10:1):1,(11:1,12:1):1):1,((13:1,14:1):1,(15:1,16:1):1):1):1);");
+        Tree trueST = Trees.readTree("(1:1.0,(2:1.0,(3:1.0,(4:1.0,(5:1.0,(6:1.0,(7:1.0,(8:1.0,(9:1.0,(10:1.0,(11:1.0,(12:1.0,(13:1.0,(14:1.0,(15:1.0,16:1.0)I14:1.0)I13:1.0)I12:1.0)I11:1.0)I10:1.0)I9:1.0)I8:1.0)I7:1.0)I6:1.0)I5:1.0)I4:1.0)I3:1.0)I2:1.0)I1:1.0)I0;");
+        //(1:1.0,(2:1.0,(3:1.0,(4:1.0,(5:1.0,(6:1.0,(7:1.0,(8:1.0,(9:1.0,(10:1.0,(11:1.0,(12:1.0,(13:1.0,(14:1.0,(15:1.0,16:1.0)I14:1.0)I13:1.0)I12:1.0)I11:1.0)I10:1.0)I9:1.0)I8:1.0)I7:1.0)I6:1.0)I5:1.0)I4:1.0)I3:1.0)I2:1.0)I1:1.0)I0;
+
+        //Tree trueST = Trees.readTree("((((16:1.0,15:1.0):1.0,(14:1.0,13:1.0):1.0):1.0,((12:1.0,11:1.0):1.0,(10:1.0,9:1.0):1.0):1.0):1.0,(((8:1.0,7:1.0):1.0,(6:1.0,5:1.0):1.0):1.0,((4:1.0,3:1.0):1.0,(2:1.0,1:1.0):1.0):1.0):1.0);");
+        //Tree trueST = Trees.readTree("(((((1:1.0,2:1.0)I17:1.0,(3:1.0,4:1.0)I18:1.0)I9:1.0,((5:1.0,6:1.0)I19:1.0,(7:1.0,8:1.0)I20:1.0)I10:1.0)I5:1.0,(((9:1.0,10:1.0)I21:1.0,(11:1.0,12:1.0)I22:1.0)I11:1.0,((13:1.0,14:1.0)I23:1.0,(15:1.0,16:1.0)I24:1.0)I12:1.0)I6:1.0)I3:1.0,((((17:1.0,18:1.0)I25:1.0,(19:1.0,20:1.0)I26:1.0)I13:1.0,((21:1.0,22:1.0)I27:1.0,(23:1.0,24:1.0)I28:1.0)I14:1.0)I7:1.0,(((25:1.0,26:1.0)I29:1.0,(27:1.0,28:1.0)I30:1.0)I15:1.0,((29:1.0,30:1.0)I31:1.0,(31:1.0,32:1.0)I32:1.0)I16:1.0)I8:1.0)I4:1.0)I0;");
         double temp = 0.0;
         for (int i = 0; i < fileNum; i++) {
             List<Tree> tfTrees = new ArrayList<Tree>();
@@ -184,7 +118,7 @@ public class InferOperator {
                 Tree t = Trees.readTree(tree);
                 tfTrees.add(t);
             }
-            ast = Trees.readTree(ui.initAST(tfTrees));
+            ast = Trees.readTree(initAST(tfTrees));
             d[i] = this.getDistance(ast, trueST);
 
             temp += d[i];
@@ -196,11 +130,109 @@ public class InferOperator {
         System.out.println(d[fileNum]);
     }
 
+    // For Treefix: Check the RF_distance (trueST, TF_AST_ST)
+    // Paras: "/Users/doriswang/Treefix/venv/treefix-1.1.10/s16/1000_0001_TFTrees.txt "
+
+    public void gtOutfitChecker(String tfTreesFile) throws IOException, ParseException {
+        int lociNum = 10;
+        int fileNum = 10;
+        Tree ast;
+        String filePath = tfTreesFile;
+        BufferedReader reader = new BufferedReader(new FileReader(filePath));
+        String[] trees = reader.readLine().trim().split(";");
+        double[] d = new double[fileNum + 1];
+        Tree trueST = Trees.readTree("((((16:1.0,15:1.0):1.0,(14:1.0,13:1.0):1.0):1.0,((12:1.0,11:1.0):1.0,(10:1.0,9:1.0):1.0):1.0):1.0,(((8:1.0,7:1.0):1.0,(6:1.0,5:1.0):1.0):1.0,((4:1.0,3:1.0):1.0,(2:1.0,1:1.0):1.0):1.0):1.0);");
+        double temp = 0.0;
+        int counter = 0;
+        for (int i = 0; i < fileNum; i++) {
+            List<Tree> tfTrees = new ArrayList<Tree>();
+            for (int ln = 0; ln < lociNum; ln++) {
+                int fileIndex = i * lociNum + ln;
+                String tree = trees[counter] + ";";
+                Tree t = Trees.readTree(tree);
+                tfTrees.add(t);
+                counter++;
+            }
+            ast = Trees.readTree(initAST(tfTrees));
+            d[i] = this.getDistance(ast, trueST);
+
+            temp += d[i];
+        }
+        for (int i = 0; i < fileNum; i++) {
+            System.out.println(d[i]);
+        }
+        d[fileNum] = temp / fileNum;
+        System.out.println(d[fileNum]);
+    }
+
+    public String initAST(List<Tree> gts) throws IOException, ParseException {
+//        String command = "java -jar " + _ASTRALdir + "astral.4.11.1.jar -i /Users/doriswang/PhyloNet/tools/Astral/test_data/tempIn.tre -o /Users/doriswang/PhyloNet/tools/Astral/test_data/testOut.tre";
+
+        String command = "java -jar " + _ASTRALdir + "astral.4.11.1.jar -i " + _ASTRALdir + "test_data/tempIn.tre -o " + _ASTRALdir + "test_data/testOut.tre"; ///Users/doriswang/PhyloNet/tools/Astral/test_data/tempIn.tre -o /Users/doriswang/PhyloNet/tools/Astral/test_data/testOut.tre";
+
+        String cmdFile = _ASTRALdir + "tempCMD.sh";
+        BufferedWriter cmd = new BufferedWriter(new FileWriter(cmdFile));
+        cmd.write(command + '\n');
+        cmd.flush();
+        cmd.close();
+        String inputFile = _ASTRALdir + "test_data/tempIn.tre";
+        BufferedWriter in = new BufferedWriter(new FileWriter(inputFile));
+        Tree temp = gts.get(0);
+
+        //TODO: add weight
+        for (int i = 0; i < gts.size(); i++) {
+            in.write(gts.get(i).toString() + "\n");
+        }
+        in.flush();
+        in.close();
+        ProcessBuilder pb = new ProcessBuilder("/bin/bash", cmdFile);
+        pb.redirectErrorStream(true);
+        try {
+            Process proc = pb.start();
+            try {
+                proc.waitFor();
+            } catch (InterruptedException ex) {
+                System.out.println(ex.getMessage());
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        String outputFile = _ASTRALdir + "test_data/testOut.tre";
+        BufferedReader out = new BufferedReader(new FileReader(outputFile));
+        String stString = out.readLine().trim();
+        int index0 = 0;
+        int index1 = 1;
+        List<Integer> indexes = new ArrayList<Integer>();
+        for (int i = 1; i < stString.length(); i++) {
+            if (stString.charAt(index1) == ':') {
+                indexes.add(i);
+            }
+            index1++;
+        }
+        for (int i = 1; i <= indexes.size(); i++) {
+            index1 = indexes.get(indexes.size() - i);
+            for (int j = 1; j < stString.length(); j++) {
+                index0 = index1 - j;
+                if (stString.charAt(index0) == ')') {
+                    break;
+                } else
+                    index0--;
+            }
+            String newST = stString.substring(0, index0 + 1) + "I" + Integer.toString(i - 1) + stString.substring(index1);
+            stString = newST;
+        }
+        System.out.println("AST String :" + stString);
+
+        return stString;
+    }
+
+
     // For GEMS: Check the RF_distance (trueGT, GEMS_GT) and (trueST, GEMS_GT)
     // Paras:  ifo.gtOutfitChecker("/Users/doriswang/Desktop/output/0001/10/50/", ifo.InputPath + "input/0001/", 10, 10);
 
-    public void gtOutfitChecker(String iPath, String tPath, int lociNum, int fileNum) throws IOException {
-        List<Tree> iGTs = loadIGTrees(iPath,lociNum, fileNum);
+    public void gtOutfitChecker(String iPath, String tPath, int lociNum, int fileNum, int seqLen) throws IOException {
+        List<Tree> iGTs = loadIGTrees(iPath,lociNum, fileNum, seqLen);
         List<Tree> tGTs = new ArrayList<Tree>();
         String streeFile = tPath + "Tree/trueST.txt";
         BufferedReader stReader = new BufferedReader(new FileReader(streeFile));
@@ -250,44 +282,110 @@ public class InferOperator {
         return d;
     }
 
+
+    // For GEMS: Check the RF_distance (trueGT, TF/R_GT) and (trueST, TF/R_GT)
+    // Paras:  ifo.gtOutfitChecker("/Users/doriswang/Desktop/output/0001/10/50/", ifo.InputPath + "input/0001/", 10, 10);
+
+    public void gtOverTFR(String iPath, String tPath, int lociNum, int fileNum, int seqLen) throws IOException {
+        List<Tree> iGTs = new ArrayList<Tree>();
+
+        List<Tree> tGTs = new ArrayList<Tree>();
+        String streeFile = tPath + "Tree/trueST.txt";
+        BufferedReader stReader = new BufferedReader(new FileReader(streeFile));
+        Tree trueST = Trees.readTree((String) stReader.readLine().trim());
+
+        for (int ln = 0; ln < lociNum*fileNum; ln++) {
+            tGTs.add(Trees.readTree(stReader.readLine().trim()));
+        }
+        stReader.close();
+        double[] d = this.getDistances(iGTs,tGTs,fileNum*lociNum);
+
+        BufferedWriter w = new BufferedWriter(new FileWriter(iPath  + "/distanceTF/R_GT.txt"));
+        for(int i = 0;i<d.length;i++){
+            w.write(i + ":" + d[i] + "\n");
+            w.flush();
+        }
+
+        w.close();
+        System.out.println("TF/R_Distance_GT:" + d[fileNum*lociNum]);
+
+        double temp = 0.0;
+        BufferedWriter w1 = new BufferedWriter(new FileWriter(iPath + "/" + lociNum + "/distanceTF/R_ST.txt"));
+        for(int i = 0;i<lociNum*fileNum;i++){
+
+            w1.write(i + ":" + this.getDistance(trueST,iGTs.get(i)) + "\n");
+            temp += this.getDistance(trueST,iGTs.get(i));
+            w1.flush();
+        }
+        w1.write(lociNum*fileNum + ":" + temp/(lociNum*fileNum));
+        w1.flush();
+        w1.close();
+
+        System.out.println("TF/R_Distance_ST:" + temp/(lociNum*fileNum));
+
+
+    }
+
     // Compare with MCMC(Yang 2017)
     // Check the ratio: ( #true subtree appear / #inferred trees )
     public void MCMC_Compare() throws IOException {
-        List iSTs = loadISTrees("/Users/doriswang/Desktop/output/0001/2/50/",2, 100);
+        List iSTs = loadISTrees("/Users/doriswang/Desktop/a/0001/10/50/",2, 20);
 
         List subTrees = new ArrayList<Tree>();
-        subTrees.add(Trees.readTree("(1,2)"));
-        subTrees.add(Trees.readTree("(3,4)"));
-        subTrees.add(Trees.readTree("(5,6)"));
-        subTrees.add(Trees.readTree("(7,8)"));
-        subTrees.add(Trees.readTree("(9,10)"));
-        subTrees.add(Trees.readTree("(11,12)"));
-        subTrees.add(Trees.readTree("(13,14)"));
+//        subTrees.add(Trees.readTree("(1,2)"));
+//        subTrees.add(Trees.readTree("(3,4)"));
+//        subTrees.add(Trees.readTree("(5,6)"));
+//        subTrees.add(Trees.readTree("(7,8)"));
+//        subTrees.add(Trees.readTree("(9,10)"));
+//        subTrees.add(Trees.readTree("(11,12)"));
+//        subTrees.add(Trees.readTree("(13,14)"));
+//        subTrees.add(Trees.readTree("(15,16)"));
+//        subTrees.add(Trees.readTree("((1,2),(3,4))"));
+//        subTrees.add(Trees.readTree("((5,6),(7,8))"));
+//        subTrees.add(Trees.readTree("((9,10),(11,12))"));
+//        subTrees.add(Trees.readTree("((13,14),(15,16))"));
+//        subTrees.add(Trees.readTree("(((1,2),(3,4)),((5,6),(7,8)))"));
+//        subTrees.add(Trees.readTree("(((9,10),(11,12)),((13,14),(15,16)))"));
+//        subTrees.add(Trees.readTree("((((1,2),(3,4)),((5,6),(7,8))),(((9,10),(11,12)),((13,14),(15,16))))"));
+        //(1:1.0,(2:1.0,(3:1.0,(4:1.0,(5:1.0,(6:1.0,(7:1.0,(8:1.0,(9:1.0,(10:1.0,(11:1.0,(12:1.0,(13:1.0,(14:1.0,(15:1.0,16:1.0)I14:1.0)I13:1.0)I12:1.0)I11:1.0)I10:1.0)I9:1.0)I8:1.0)I7:1.0)I6:1.0)I5:1.0)I4:1.0)I3:1.0)I2:1.0)I1:1.0)I0;
+
         subTrees.add(Trees.readTree("(15,16)"));
-        subTrees.add(Trees.readTree("((1,2),(3,4))"));
-        subTrees.add(Trees.readTree("((5,6),(7,8))"));
-        subTrees.add(Trees.readTree("((9,10),(11,12))"));
-        subTrees.add(Trees.readTree("((13,14),(15,16))"));
-        subTrees.add(Trees.readTree("(((1,2),(3,4)),((5,6),(7,8)))"));
-        subTrees.add(Trees.readTree("(((9,10),(11,12)),((13,14),(15,16)))"));
-        subTrees.add(Trees.readTree("((((1,2),(3,4)),((5,6),(7,8))),(((9,10),(11,12)),((13,14),(15,16))))"));
+        subTrees.add(Trees.readTree("((15,16),14)"));
+        subTrees.add(Trees.readTree("(((15,16),14),13)"));
+        subTrees.add(Trees.readTree("((((15,16),14),13),12)"));
+        subTrees.add(Trees.readTree("(((((15,16),14),13),12),11)"));
+        subTrees.add(Trees.readTree("((((((15,16),14),13),12),11),10)"));
+        subTrees.add(Trees.readTree("(((((((15,16),14),13),12),11),10),9)"));
+        subTrees.add(Trees.readTree("((((((((15,16),14),13),12),11),10),9),8)"));
+        subTrees.add(Trees.readTree("(((((((((15,16),14),13),12),11),10),9),8),7)"));
+        subTrees.add(Trees.readTree("((((((((((15,16),14),13),12),11),10),9),8),7),6)"));
+        subTrees.add(Trees.readTree("(((((((((((15,16),14),13),12),11),10),9),8),7),6),5)"));
+        subTrees.add(Trees.readTree("((((((((((((15,16),14),13),12),11),10),9),8),7),6),5),4)"));
+        subTrees.add(Trees.readTree("((((((((((((15,16),14),13),12),11),10),9),8),7),6),5),3)"));
+        subTrees.add(Trees.readTree("(((((((((((((15,16),14),13),12),11),10),9),8),7),6),5),3),2)"));
+        subTrees.add(Trees.readTree("((((((((((((((15,16),14),13),12),11),10),9),8),7),6),5),3),2),1)"));
 
 
         double[] d = this.MCMCCompare(iSTs,subTrees);
 
         ////ifo.isTopoExist(t1,t2);
-        Tree temp = Trees.readTree("((((16:1.0,15:1.0):1.0,(14:1.0,13:1.0):1.0):1.0,((12:1.0,11:1.0):1.0,(10:1.0,9:1.0):1.0):1.0):1.0,(((8:1.0,7:1.0):1.0,(6:1.0,5:1.0):1.0):1.0,((4:1.0,3:1.0):1.0,(2:1.0,1:1.0):1.0):1.0):1.0);");
+        // Syemmtric:
+        //"((((16:1.0,15:1.0):1.0,(14:1.0,13:1.0):1.0):1.0,((12:1.0,11:1.0):1.0,(10:1.0,9:1.0):1.0):1.0):1.0,(((8:1.0,7:1.0):1.0,(6:1.0,5:1.0):1.0):1.0,((4:1.0,3:1.0):1.0,(2:1.0,1:1.0):1.0):1.0):1.0);"
+        //Asymmetric:
+        //
+        Tree temp = Trees.readTree("(1:1.0,(2:1.0,(3:1.0,(4:1.0,(5:1.0,(6:1.0,(7:1.0,(8:1.0,(9:1.0,(10:1.0,(11:1.0,(12:1.0,(13:1.0,(14:1.0,(15:1.0,16:1.0)I14:1.0)I13:1.0)I12:1.0)I11:1.0)I10:1.0)I9:1.0)I8:1.0)I7:1.0)I6:1.0)I5:1.0)I4:1.0)I3:1.0)I2:1.0)I1:1.0)I0;");
         for(int i = 0;i<d.length;i++){
             System.out.println(i + " : " + d[i]);
         }
     }
 
+    //load inferred species tree
     public static List<Tree> loadISTrees(String filePath,int lociNum, int treeNum) throws IOException {
         List<Tree> iST = new ArrayList<Tree>();
         for (int ln = 0; ln < treeNum; ln++) {
             String streeFile = "";
             if(lociNum == 2)
-                 streeFile = filePath + ln + "/1000/GlobalBestTrees.txt";
+                 streeFile = filePath + ln + "/1000/50/GlobalBestTrees.txt";
             else if(lociNum == 10){
                 streeFile = filePath + ln + "/1000/50/GlobalBestTrees.txt";
             }
@@ -297,17 +395,16 @@ public class InferOperator {
         }
         return iST;
     }
-
-    public static List<Tree> loadIGTrees(String filePath,int lociNum, int treeNum) throws IOException {
+    //load inferred gene tree
+    public static List<Tree> loadIGTrees(String filePath,int lociNum, int treeNum, int seqLen) throws IOException {
         List<Tree> iGT = new ArrayList<Tree>();
         for (int ln = 0; ln < treeNum; ln++) {
             String streeFile = "";
-            if(lociNum == 2)
-                streeFile = filePath + ln + "/1000/GlobalBestTrees.txt";
-            else if(lociNum == 10){
-                //                streeFile = filePath + ln + "/600/50/GlobalBestTrees.txt";
+            if(lociNum == 10 && seqLen==1000)
+                streeFile = filePath + ln + "/" + seqLen + "/50/GlobalBestTrees.txt";
+            else {
+                streeFile = filePath + ln + "/" + seqLen + "/GlobalBestTrees.txt";
 
-                streeFile = filePath + ln + "/1000/50/GlobalBestTrees.txt";
             }
             BufferedReader stReader = new BufferedReader(new FileReader(streeFile));
             Tree igt = Trees.readTree(stReader.readLine().trim().split(": ")[1]);

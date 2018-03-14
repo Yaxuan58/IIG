@@ -44,32 +44,36 @@ public class Treefix {
         TREEINDEX = 0;
         trueGTS = new ArrayList<Tree>();
         trueSeq = new ArrayList<Alignment>();
-
+        _InputDir = "/Users/doriswang/PhyloNet/";
         //change variables
         lociNum = 200;
         seqLen = 1000;
         taxaNum = 16;
-        theta = "001";
-
+        theta = "0001";
+        String inputFile = _InputDir + "input/" + theta + "/";
 
         gtPath = "/Users/doriswang/PhyloNet/tools/RAxML/" + seqLen + "t" + theta + "/";
 
         _TreefixDir = "/Users/doriswang/Treefix/venv/treefix-1.1.10/s16/";
-        _InputDir = "/Users/doriswang/PhyloNet/";
+
+
         _OutputDir = "/Users/doriswang/PhyloNet/output/RAxML/" + theta + "/"; //for RAxML out
         _RTreeDir = _OutputDir + "rooted/";
 
         operator = new InferOperator(_InputDir, _OutputDir, 0, 7);
         operator.isExitsPath(_OutputDir);
         _RAxMLDir = operator._RAxMLdir;
-        loadTrees(_InputDir + "input/" + theta + "/", lociNum);
+        loadTrees(inputFile, lociNum);
         for (int i = 0; i < lociNum; i++) {
-            Alignment aln = operator.loadLocus(i, seqLen, taxaNum, _InputDir + "input/" + theta + "/");
+            Alignment aln = operator.loadLocus(i, seqLen, taxaNum, inputFile);
             trueSeq.add(aln);
         }
 
     }
 
+    //(0) !!!When you change the topology of ST, update RAxML input !!! :
+     //       tf.writeRAxMLAlgn();
+     //   tf.initRAxML();
     //(1) Write alignment + update .stree
     //(2) Run Treefix in shell(tf.sh)
     //(3) Compute distance
@@ -77,11 +81,15 @@ public class Treefix {
     public static void main(String[] args) throws IOException, ParseException, InterruptedException {
 
         Treefix tf = new Treefix();
-        tf.writeTFAlgn();
+
+        //tf.writeRAxMLAlgn();
+       // tf.initRAxML();
 
 
+
+       // tf.writeTFAlgn();
+//
         String dataPath = gtPath;
-
         List<Tree> rTrees = loadRTrees(dataPath, tf.lociNum);
 
         double[] distR = tf.getDistances(trueGTS, rTrees, tf.lociNum);
@@ -100,16 +108,12 @@ public class Treefix {
             w.flush();
             w1.flush();
         }
-
         w.close();
         w1.close();
         System.out.println("R_Distance:" + distR[tf.lociNum]);
         System.out.println("TF_Distance:" + distT[tf.lociNum]);
-
-
         double distRS = 0.0;
         double distTS = 0.0;
-
         BufferedWriter w2 = new BufferedWriter(new FileWriter(dataPath + "distanceRS.txt"));
         BufferedWriter w3 = new BufferedWriter(new FileWriter(dataPath + "distanceTFS.txt"));
         for (int i = 0; i < distR.length - 1; i++) {
@@ -165,6 +169,68 @@ public class Treefix {
             aFile.flush();
             aFile.close();
         }
+    }
+
+    public void writeRAxMLAlgn() throws IOException, ParseException, InterruptedException {
+        for (int i = 0; i < lociNum; i++) {
+            Alignment aln = trueSeq.get(i);
+
+            BufferedWriter rFile = new BufferedWriter(new FileWriter(gtPath + i + "/dna.phy")); //0.nt.align
+            rFile.write(taxaNum + " " + seqLen + '\n');
+            rFile.flush();
+            List<String> names = aln.getTaxaNames();
+            Map<String, String> thisAln = aln.getAlignment();
+            for (int j = 0; j < taxaNum; j++) {
+                String name = names.get(j);
+                String seq = thisAln.get(name);
+                rFile.write(name + '\t' + seq + '\n');
+
+            }
+            rFile.flush();
+            rFile.close();
+        }
+    }
+
+
+    public List<Tree> initRAxML() throws IOException, ParseException, InterruptedException {
+        List<Tree> gts = new ArrayList<Tree>();
+        for (int i = 0; i < lociNum; i++) {
+            System.out.print(i + " th Locus RAxML starts!" + '\n');
+            String rm = "rm *.T" + i + '\n';
+
+            //./raxmlHPC-PTHREADS -M -m GTRGAMMA -p 12345 -# 10 -s 0/dna.phy -n T0
+            String raxml = "./raxmlHPC-PTHREADS -T 2 -m GTRGAMMA -p 12345 -# 20 " + "-s " + i + "/dna.phy -n T" + i;
+            String cmdFile = gtPath + i + "/tempCMD.sh";
+            BufferedWriter cmd = new BufferedWriter(new FileWriter(cmdFile));
+            cmd.write("cd " + gtPath + '\n');
+            cmd.write(rm);
+            cmd.flush();
+            cmd.write(raxml);
+            cmd.flush();
+            cmd.close();
+
+            ProcessBuilder pb = new ProcessBuilder("/bin/bash", cmdFile);
+            pb.redirectErrorStream(true);
+            try {
+                Process proc = pb.start();
+                try {
+                    proc.waitFor();
+                } catch (InterruptedException ex) {
+                    System.out.println(ex.getMessage());
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+        for (int i = 0; i < lociNum; i++) {
+            String outputFile = gtPath + "/RAxML_bestTree.T" + i;
+            BufferedReader gtReader = new BufferedReader(new FileReader(outputFile));
+            String gtString = gtReader.readLine().trim();
+            gts.add(Trees.readTree(gtString));
+            gtReader.close();
+        }
+        return gts;
+
     }
 
     public static List<Tree> loadTrees(String filePath, int lociNum) throws IOException {

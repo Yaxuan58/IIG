@@ -16,8 +16,12 @@ import edu.rice.cs.bioinfo.programs.phylonet.structs.tree.model.sti.STINode;
 
 /**
  * Created by doriswang on 9/1/17.
+ * process Rattle snack data
+ * //RawDataProcessor r = new RawDataProcessor();
+   //r.compare();
  */
 public class RawDataProcessor {
+
 
     public HashMap<Integer, String> getTaxaNameMap() throws IOException{
         HashMap<Integer, String> nameMap = new HashMap<Integer, String>();

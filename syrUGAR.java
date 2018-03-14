@@ -1,7 +1,7 @@
 package edu.rice.cs.bioinfo.programs.phylonet.algos.iterHeuristic;
 
 /**
- * Created by doriswang on 10/22/17.
+ * Created by doriswang on 3/13/18.
  * UPGMA + GLASS + ASTRAL + RAxML
  */
 
@@ -66,7 +66,7 @@ import edu.rice.cs.bioinfo.programs.phylonet.structs.tree.util.Trees;
 
 import java.io.*;
 import java.util.*;
-public class UGARInfer {
+public class syrUGAR {
 
     private static String OutDir;
     protected static String _msdir;
@@ -153,20 +153,20 @@ public class UGARInfer {
 //
 
     //All parameters should be initialed here
-    UGARInfer(String inputPath, String outputPath, int index, double hTheta, int iteration, int lnum, boolean msDetail, int rNum, int seqLength, int msSize) throws IOException, InterruptedException, ParseException {
+    syrUGAR(String inputPath, String outputPath, int index, double hTheta, int iteration, int lnum, boolean msDetail, int rNum, int seqLength, int msSize) throws IOException, InterruptedException, ParseException {
 
         String fTemp = "";
         if (hTheta == 0.005) {
-                fTemp = "001";
-                //rNum = 1;
+            fTemp = "001";
+            //rNum = 1;
 //                if (lnum == 5 || lnum == 2)
 //                    rNum = 3;
         } else {
-                fTemp = "0001";
+            fTemp = "0001";
 //                rNum = 2;
 //                if (lnum == 5 || lnum == 2)
 //                    rNum = 4;
-            }
+        }
         TREEINDEX = index*lnum;
         endCounter = 0;
         GET_MS_DETAIL = msDetail;
@@ -194,19 +194,19 @@ public class UGARInfer {
         _scales = new double[]{1.0};
         _seqLens = new int[lnum];
         weights = new double[lnum];
-       // _seqLens = new int[]//{ 200, 200};
-               // { 200,200,200,200,200,200,200, 200, 200, 200};
+        // _seqLens = new int[]//{ 200, 200};
+        // { 200,200,200,200,200,200,200, 200, 200, 200};
 
 
-                //new double[]//{1,1};
-                //{1,1,1,1,1,1,1,1,1,1};
+        //new double[]//{1,1};
+        //{1,1,1,1,1,1,1,1,1,1};
 //                new double[lnum];
         for(int i =0;i<lnum;i++){
             _seqLens[i] = seqLength;
             weights[i] = 1;
         }
         //{1000,1000,1000,1000,1000};
-                //{200, 400,600,800,1000,200, 400,600, 800,1000};
+        //{200, 400,600,800,1000,200, 400,600, 800,1000};
 
         taxaNum = 16;
         ll_Ratio = 1.0; // P(seq|GT): p(GT|ST)
@@ -238,7 +238,7 @@ public class UGARInfer {
         locusBestGTS = new ArrayList<Tree>();
         locusGTLL = new double[lociNum];
         //{1,2,3,4,5,1,2,3,4,5};
-                //{1,1,1,1,1,5,5,5,5,5};
+        //{1,1,1,1,1,5,5,5,5,5};
         astInit = new double[6];
         String tempPath = inputPath + "input/" + fTemp + "/";
         //"a/input/"
@@ -415,7 +415,7 @@ public class UGARInfer {
         bw2.write("Seq lens are :  ");
         for(int i = 0 ; i< _seqLens.length; i++){
             bw2.write(_seqLens[i] + " ");
-                }
+        }
         bw2.write("HalfTheta  " + halfTheta + "\n");
         bw2.flush();
         bw2.close();
@@ -783,7 +783,7 @@ public class UGARInfer {
 
         //TODO: add weight
         for (int i = 0; i < gts.size(); i++) {
-                in.write(gts.get(i).toString() + "\n");
+            in.write(gts.get(i).toString() + "\n");
         }
         in.flush();
         in.close();
