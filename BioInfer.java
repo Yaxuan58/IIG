@@ -1,8 +1,8 @@
 package edu.rice.cs.bioinfo.programs.phylonet.algos.iterHeuristic;
 
 /**
- * Created by doriswang on 3/13/18.
- * UPGMA + GLASS + ASTRAL + RAxML
+ * Created by doriswang on 3/17/18.
+ * for bio dataset
  */
 
 
@@ -34,7 +34,6 @@ import edu.rice.cs.bioinfo.programs.phylonet.structs.tree.model.Tree;
 import edu.rice.cs.bioinfo.programs.phylonet.structs.tree.model.sti.STINode;
 import edu.rice.cs.bioinfo.programs.phylonet.structs.tree.model.sti.STITree;
 import edu.rice.cs.bioinfo.programs.phylonet.structs.tree.util.Trees;
-import edu.rice.cs.bioinfo.library.programming.Tuple;
 import org.jcp.xml.dsig.internal.dom.DOMUtils;
 import sun.nio.ch.Net;
 import edu.rice.cs.bioinfo.programs.phylonet.algos.MCMCseq.start.*;
@@ -67,7 +66,7 @@ import edu.rice.cs.bioinfo.programs.phylonet.structs.tree.util.Trees;
 
 import java.io.*;
 import java.util.*;
-public class syrUGAR {
+public class BioInfer {
 
     private static String OutDir;
     protected static String _msdir;
@@ -83,9 +82,6 @@ public class syrUGAR {
     private List<String> trueGTS;
     private List<Tree> trueTopos;
     private List<Tree> finalGTS;
-    private List<Tree> checkedTopos; // checked topo from MS by RAxML
-    private List<List<Tuple<Tree, Double>>> topoLLs; // i: locus i; locus_i{ <refinedTopo_j,ll> }
-
     private static List<Alignment> trueSeq;
 
 
@@ -147,7 +143,7 @@ public class syrUGAR {
     //double bestLL = llList[0] + ll_Ratio*msTopoLL.get(i);
 
     //distance:
-    private double[] astInit; //ASTRAL : [0]unrooted_ST dist [1]unrooted_GT dist
+    private  double[] astInit; //ASTRAL : [0]unrooted_ST dist [1]unrooted_GT dist
     private double[][] gtDis_Locus;// gt distance for each locus for each iteration
     private double[][] msDist_Locus;// ms_gt distance for each locus for each iteration --> to test the efficiency of MS
     private List<Double> bestSTD;//temporary  ST distance for GB_bestST for iteration i
@@ -157,35 +153,20 @@ public class syrUGAR {
 //
 
     //All parameters should be initialed here
-    syrUGAR(String inputPath, String outputPath, int index, double hTheta, int iteration, int lnum, boolean msDetail, int rNum, int seqLength, int msSize) throws IOException, InterruptedException, ParseException {
+    BioInfer(String inputPath, String outputPath, int index, double hTheta, int iteration, int lnum, boolean msDetail, int rNum, int msSize) throws IOException, InterruptedException, ParseException {
 
-        String fTemp = "";
-        if (hTheta == 0.005) {
-            fTemp = "001";
-            //rNum = 1;
-//                if (lnum == 5 || lnum == 2)
-//                    rNum = 3;
-        } else {
-            fTemp = "0001";
-//                rNum = 2;
-//                if (lnum == 5 || lnum == 2)
-//                    rNum = 4;
-        }
-        TREEINDEX = index * lnum;
+        String fTemp = "syr";
+        TREEINDEX = index*lnum;
         endCounter = 0;
         GET_MS_DETAIL = msDetail;
         //index for program   TREEINDEX for inputData
         _msdir = inputPath + "tools/msFiles/msdir/ms"; ///home/yw58/IIG/tools/Astral/astral.4.11.1.jar
-        _ASTRALdir = inputPath + "tools/Astral/" + rNum + "/";
-        RESULT_DIR = outputPath;//"/Users/doriswang/PhyloNet/Data/IIG/result/" | home/yw58/IIG/output
+        _ASTRALdir = inputPath + "tools/Astral/" + rNum+ "/";
+        RESULT_DIR = outputPath ;//"/Users/doriswang/PhyloNet/Data/IIG/result/" | home/yw58/IIG/output
         trueGTS = new ArrayList<String>();
         finalGTS = new ArrayList<Tree>();
         trueTopos = new ArrayList<Tree>();
-        checkedTopos = new ArrayList<Tree>();
-        topoLLs = new ArrayList<>();
-        for (int i = 0; i < lnum; i++) {
-            topoLLs.add(new ArrayList<Tuple<Tree, Double>>());
-        }
+
 
         GLOBALBESTGTS = new ArrayList<String>();
         trueSeq = new ArrayList<Alignment>();
@@ -200,23 +181,13 @@ public class syrUGAR {
         //ogHeight = new double[3]; // og height from all initGT[min, max]
         refineGTSize = msSize;
         _scales = new double[]{1.0};
-        _seqLens = new int[lnum];
+        _seqLens = new int[]{471,525,420,260,260,469,796,296,220,262,256,194,447,849,798,522,267,274,665};
         weights = new double[lnum];
-        // _seqLens = new int[]//{ 200, 200};
-        // { 200,200,200,200,200,200,200, 200, 200, 200};
-
-
-        //new double[]//{1,1};
-        //{1,1,1,1,1,1,1,1,1,1};
-//                new double[lnum];
-        for (int i = 0; i < lnum; i++) {
-            _seqLens[i] = seqLength;
+        for(int i =0;i<lnum;i++){
             weights[i] = 1;
         }
-        //{1000,1000,1000,1000,1000};
-        //{200, 400,600,800,1000,200, 400,600, 800,1000};
 
-        taxaNum = 16;
+        taxaNum = 24;
         ll_Ratio = 1.0; // P(seq|GT): p(GT|ST)
         ll_Ratio_Change = false;
         gtsLL = new double[ITERATION];// LL(Seq|GTS)*(GTS|ST)
@@ -239,27 +210,28 @@ public class syrUGAR {
         STRATEGY = "RANDOM"; //RANDOM IMPROVE N
         //TODO Simulation
         simulator = new IIGTSimulator(lociNum, _scales, _seqLens, halfTheta, ITERATION, inputPath, rNum);
-        operator = new InferOperator(inputPath, outputPath, index, rNum);
-        operator.changeUpdateSh(lociNum, refineGTSize);
-        OutDir = RESULT_DIR + fTemp + "/" + lociNum + "/" + ITERATION + "/" + index + "/" + _seqLens[0] + "/" + msSize + "/"; // output/0001/1/
+        operator = new InferOperator(inputPath,outputPath,index, rNum);
+        operator.changeUpdateSh(lociNum,refineGTSize);
+        OutDir = RESULT_DIR  + fTemp + "/" + lociNum + "/" + ITERATION +"/"+ halfTheta*100000 + "/" + _seqLens[0] + "/" + msSize + "/"; // output/0001/1/
         operator.isExitsPath(OutDir);
         locusBestGTS = new ArrayList<Tree>();
         locusGTLL = new double[lociNum];
         //{1,2,3,4,5,1,2,3,4,5};
         //{1,1,1,1,1,5,5,5,5,5};
         astInit = new double[6];
-        String tempPath = inputPath + "input/" + fTemp + "/";
+        //String tempPath = inputPath + "input/" + fTemp + "/38LocusData/";
         //"a/input/"
-        List<String> trees = simulator.loadRandomTrees(tempPath, lociNum, TREEINDEX);
-        trueST = trees.get(0);
-        //trueGTS = trees.subList(1, trees.size());
-        for (int i = 0; i < lociNum; i++) {
-            trueGTS.add(trees.get(i + 1));
-            trueTopos.add(Trees.readTree(trees.get(i + 1)));
-            Alignment aln = operator.loadRandomLocus(i, _seqLens[i], taxaNum, tempPath, TREEINDEX);
-            trueSeq.add(aln);
+        if(fTemp.equals("syr")){
+            trueST = "((((24,25),20),((22,23),21)),(((((7,10),(3,4)),(2,6)),((5,8),9)),(((((13,14),11),12),((16,17),15)),(18,19))));";
+            String tempPath = inputPath + "input/" + fTemp + "/38LocusData/";
+            trueSeq = operator.loadSYRSeq(lociNum, tempPath, taxaNum, trueSeq);
+            //TODO 9-11 load startTree?
+            for(int i = 0;i<lociNum;i++){
+                trueGTS.add("((((24,25),20),((22,23),21)),(((((7,10),(3,4)),(2,6)),((5,8),9)),(((((13,14),11),12),((16,17),15)),(18,19))));");
+            }
         }
-        for (int i = 0; i < lociNum; i++) {
+
+        for(int i = 0; i<lociNum; i++){
             locusGTLL[i] = Double.NEGATIVE_INFINITY;
         }
         //weights = {5,1,1,1,1};
@@ -267,9 +239,10 @@ public class syrUGAR {
 
     public static void main(String[] args) throws IOException, ParseException, InterruptedException {
 //UGARInfer(String inputPath, String outputPath, int index, double hTheta, int iteration, int lnum, boolean msDetail, int rNum, int seqLength, int msSize)
-        //UGARInfer ui = new UGARInfer(args[0],args[1],Integer.valueOf(args[2]),Double.valueOf(args[3]),Integer.valueOf(args[4]), Integer.valueOf(args[5]),Boolean.valueOf(args[6]),Integer.valueOf(args[7]),Integer.valueOf(args[8]),Integer.valueOf(args[9]));
-        syrUGAR ui = new syrUGAR("/Users/doriswang/PhyloNet/", "/Users/doriswang/PhyloNet/Data/IIG/result/8/", 0, 0.0005, 10, 10, true, 0, 1000, 20);
+        //BioInfer ui = new BioInfer(args[0],args[1],Integer.valueOf(args[2]),Double.valueOf(args[3]),Integer.valueOf(args[4]), Integer.valueOf(args[5]),Boolean.valueOf(args[6]),Integer.valueOf(args[7]),Integer.valueOf(args[8]));
+        BioInfer ui = new BioInfer("/Users/doriswang/PhyloNet/","/Users/doriswang/PhyloNet/Data/IIG/result/8/",0,0.00075,10,19, true , 0,  5);
 
+        // lNum: lociNum:  snack 19
         ui.infer(trueSeq, ITERATION);
         System.out.println("Finish");
     }
@@ -282,16 +255,16 @@ public class syrUGAR {
         itNum = 0;
         ITERATION = t;
         long start0 = System.currentTimeMillis();
-        List<Tree> gts = operator.initFasttree(trueSeq, _seqLens, lociNum);
+        List<Tree> gts = operator.initFasttree(trueSeq,_seqLens,lociNum);
         double dist = 0.0;
-        for (int i = 0; i < gts.size(); i++) {
-            dist += operator.getDistance(gts.get(i), Trees.readTree(trueGTS.get(i)));
+        for(int i=0;i<gts.size();i++){
+            dist+=operator.getDistance(gts.get(i),Trees.readTree(trueGTS.get(i)));
         }
-        astInit[1] = dist / gts.size();
+        astInit[1] = dist/gts.size();
         System.out.println("AST  GT distance: " + astInit[1]);
 
         String n = initAST(gts);
-        astInit[0] = operator.getDistance(Trees.readTree(n), Trees.readTree(trueST));
+        astInit[0] = operator.getDistance(Trees.readTree(n),Trees.readTree(trueST));
         System.out.println("AST  ST distance: " + astInit[0]);
         System.out.println("AST is " + n);
         long start = System.currentTimeMillis();
@@ -321,14 +294,14 @@ public class syrUGAR {
             tempST = refineGeneSet(tempST);
             itNum++;
             endCounter++;
-            if (endCounter > 10)
+            if(endCounter>10)
                 break;
         }
 
         long end = System.currentTimeMillis();
         long costtime = end - start;
-        long astTime = start - start0;
-        String resultFolder = OutDir;
+        long astTime = start-start0;
+        String resultFolder = OutDir ;
         operator.isExitsPath(resultFolder);
         BufferedWriter llOut1 = new BufferedWriter(new FileWriter(resultFolder + "RunningTime.txt"));
         llOut1.write("Running time:" + String.valueOf(costtime) + "\n");
@@ -397,7 +370,7 @@ public class syrUGAR {
                 out.flush();
             }
             out.close();
-            if (GET_MS_DETAIL) {
+            if(GET_MS_DETAIL) {
                 String fileName1 = resultFolder + "MSGTDistance_" + tid + ".txt";
                 BufferedWriter out1 = new BufferedWriter(new FileWriter(fileName1));
                 for (int it = 0; it < ITERATION; it++) {
@@ -413,7 +386,7 @@ public class syrUGAR {
         BufferedWriter bw2 = new BufferedWriter(new FileWriter(resultFolder + "setting" + ".txt"));
         bw2.write(GLOBALBESTST + "\n");
         bw2.write("STATEGY : " + STRATEGY + "\n");
-        bw2.write("Best Likelihood : LL = " + String.valueOf(GLOBALBESTLL) + "  ; P(Seq|GT)" + String.valueOf(GLOBALBESTHLL) + "\n");
+        bw2.write("Best Likelihood : LL = " + String.valueOf(GLOBALBESTLL) + "  ; P(Seq|GT)" +  String.valueOf(GLOBALBESTHLL) +  "\n");
         bw2.write("Iteration number : " + String.valueOf(bestLLIter) + "\n");
         bw2.write("Likelihood combined ratio : " + ll_Ratio + "\n");
         bw2.write("Number of loci : " + lociNum + "\n");
@@ -421,7 +394,7 @@ public class syrUGAR {
         bw2.write("Number of iteration :  " + ITERATION + "\n");
         bw2.write("Number of ms Size :  " + refineGTSize + "\n");
         bw2.write("Seq lens are :  ");
-        for (int i = 0; i < _seqLens.length; i++) {
+        for(int i = 0 ; i< _seqLens.length; i++){
             bw2.write(_seqLens[i] + " ");
         }
         bw2.write("HalfTheta  " + halfTheta + "\n");
@@ -480,10 +453,10 @@ public class syrUGAR {
 
         BufferedWriter ldOut = new BufferedWriter(new FileWriter(resultFolder + "distance.txt"));
 
-        ldOut.write(astInit[0] + ";" + "RF(AST_ST)" + "\n");
-        ldOut.write(astInit[1] + ";" + "RF(AST_GT)" + "\n");
-        ldOut.write(astInit[2] + ";" + "RF(GLASS_ST)" + "\n");
-        ldOut.write(astInit[3] + ";" + "RF(AST_ST by UPGMA)" + "\n");
+        ldOut.write(astInit[0] +  ";" + "RF(AST_ST)" + "\n");
+        ldOut.write(astInit[1]+ ";" + "RF(AST_GT)" + "\n");
+        ldOut.write(astInit[2] +  ";" + "RF(GLASS_ST)" + "\n");
+        ldOut.write(astInit[3] +  ";" + "RF(AST_ST by UPGMA)" + "\n");
         //ldOut.write(astInit[4] +  ";" + "RF(AST_WST by UPGMA)" + "\n");
         String stDistance = "!!!!!!RF of Best ST : " + operator.getDistance(Trees.readTree(GLOBALBESTST), Trees.readTree(trueST));
         ldOut.write(operator.getDistance(Trees.readTree(GLOBALBESTST), Trees.readTree(trueST)) + ";RF(EM)" + "\n");
@@ -504,8 +477,8 @@ public class syrUGAR {
         System.out.println("Average distance of GTS is " + totalD / trueGTS.size() + "\n");
 
         Network bestLocusST = inferSTByAST(locusBestGTS);
-        System.out.println("RF of Best RAxML trees' ST : " + operator.getDistance(Trees.readTree(bestLocusST.toString()), Trees.readTree(trueST)));
-        ldOut.write("RF of Best RAxML trees' ST : " + operator.getDistance(Trees.readTree(bestLocusST.toString()), Trees.readTree(trueST)) + "\n");
+        System.out.println( "RF of Best RAxML trees' ST : " + operator.getDistance(Trees.readTree(bestLocusST.toString()), Trees.readTree(trueST)));
+        ldOut.write("RF of Best RAxML trees' ST : " + operator.getDistance(Trees.readTree(bestLocusST.toString()), Trees.readTree(trueST))+ "\n");
         //ldOut.write("Best RAxML trees' ST : " + bestLocusST.toString()+ "\n");
 
         //bestLocusST = inferSTByWAST(locusBestGTS);
@@ -553,16 +526,13 @@ public class syrUGAR {
         //System.out.println("ms: " + msTopos.get(0));
 
         // operator.getDistinguishedTopo(currentTopo);
-        if (GET_MS_DETAIL)
-            operator.getMSDist(trueTopos, msTopos, msDist_Locus, itNum);
+        if(GET_MS_DETAIL)
+            operator.getMSDist(trueTopos, msTopos,msDist_Locus, itNum);
 
-        //optimize topo by RAxML first
-        List<Integer> indexes = checkMSTopo(msTopos);
-        //TODO
-        updateCheckedTopos(msTopos, indexes);
-        //get best GTS
-        //List<Double> msTopoLL = operator.getRGTSLLBySTYF(rGTS, tempST);
-        List<Tree> rGTS = getBestGTS(indexes,tempST);
+        List<Double> msTopoLL = operator.getGTSLLBySTYF(msTopos, tempST);
+        System.out.println("msLL: " + msTopoLL.get(0));
+        //TODO: involve p(gt|st)
+        List<Tree> rGTS = getBestGTSByR(msTopos, tempST, msTopoLL);
         boolean move = false;
         double stDistance = 0.0;
         double gtDistance = 0.0;
@@ -573,10 +543,10 @@ public class syrUGAR {
         currentITLL[itNum] = currentLL;
         currentITHLL[itNum] = currentHLL;
         currentITSTLL[itNum] = currentLL - currentHLL;
-        double ifMove = (p1 - GLOBALBESTHLL) + ll_Ratio * (p2 - (GLOBALBESTSTLL));
-        if (itNum == 1)
+        double ifMove = (p1 - GLOBALBESTHLL) + ll_Ratio*(p2-(GLOBALBESTSTLL));
+        if(itNum==1)
             ifMove = 1;
-        if (ifMove > 0) {
+        if ( ifMove>0) {
             move = true;
             maxLL = currentLL;
             bestLLIter = itNum;
@@ -584,7 +554,7 @@ public class syrUGAR {
             bestSTLL.add(currentLL);
             GLOBALBESTLL = currentLL;
             GLOBALBESTHLL = currentHLL;
-            GLOBALBESTSTLL = GLOBALBESTLL - GLOBALBESTHLL;
+            GLOBALBESTSTLL = GLOBALBESTLL-GLOBALBESTHLL;
             stDistance = operator.getDistance(Trees.readTree(GLOBALBESTST), Trees.readTree(trueST));
             bestSTD.add(stDistance);
             bestITNum.add(itNum);
@@ -598,12 +568,15 @@ public class syrUGAR {
         }
         if (STRATEGY == "NONE") {
             move = true;
-        } else if (STRATEGY == "IMPROVE") {
+        }
+        else if (STRATEGY == "IMPROVE") {
 
-        } else if (STRATEGY == "RANDOM") {
+        }
+        else if (STRATEGY == "RANDOM") {
             if (currentLL >= maxLL) {
                 move = true;
-            } else {
+            }
+            else {
                 double random = Math.random();
                 if (currentHLL > GLOBALBESTHLL) {
                     if (random < 0.95)
@@ -660,152 +633,6 @@ public class syrUGAR {
         return tempST;
     }
 
-    //Input: sampled full msTopos
-    //Output: topos: 0-x checked, x+1 - refineSize msTopos, List<int> -index for unChecked, index for checked
-    //Do : update checkedTopos,
-    public List<Integer> checkMSTopo(List<Tree> topos) throws IOException {
-        List<Tree> sortedTopo = new ArrayList<Tree>();
-        List<Tree> unCheckedTopo = new ArrayList<Tree>();
-        List<Integer> indexes = new ArrayList<Integer>();
-        for (int i = 0; i < topos.size(); i++) {
-            boolean checked = false;
-            for (int j = 0; j < checkedTopos.size(); j++) {
-                if (operator.equalTree(topos.get(i), checkedTopos.get(j))) {
-                    checked = true;
-                    indexes.add(j);
-                    sortedTopo.add(topos.get(i));
-                    break;
-                }
-            } // indexes{20,12,3,4,-34,-35,-36,23,-37...}
-            if (!checked) {
-                checkedTopos.add(topos.get(i));
-                indexes.add(0 - checkedTopos.size()+1);
-                unCheckedTopo.add(topos.get(i));
-            }
-        }
-        for (int i = 0; i < unCheckedTopo.size(); i++) {
-            sortedTopo.add(unCheckedTopo.get(i));
-        }
-        if (sortedTopo.size() != topos.size())
-            System.out.println("Wrong");
-
-        //topos = sortedTopo;
-        return indexes;
-    }
-
-    //Input: msTopos, checked indexes (unChecked: -index )
-    //Output:
-    //Do : update checkedTopos_Locus , topoLLs
-    //     runRAxML, get msTopos
-    //
-    public List<Tree> updateCheckedTopos(List<Tree> msTopos, List<Integer> indexes) throws IOException {
-        iterLLSeq = new double[lociNum];
-        currentHLL = 0.0;
-        int unCheckIndex = 0;
-        // List<Tree> msTopos = new ArrayList<Tree>();
-        List<Tree> unChecked = new ArrayList<Tree>();
-        if(itNum==1){
-            for (int i = 0; i < refineGTSize; i++) {
-
-                int temp = 0 - indexes.get(i);
-                unChecked.add(checkedTopos.get(temp));
-                //msTopos.add(checkedTopos.get(0-indexes.get(i)));
-                indexes.set(i, temp);
-            }
-            unCheckIndex = -1;
-
-        }
-        else {
-            for (int i = 0; i < refineGTSize; i++) {
-                if (indexes.get(i) < 0) {
-                    int temp = 0 - indexes.get(i);
-                    unChecked.add(checkedTopos.get(temp));
-                    if (unCheckIndex == 0)
-                        unCheckIndex = 0 - indexes.get(i);
-                    //msTopos.add(checkedTopos.get(0-indexes.get(i)));
-                    indexes.set(i, temp);
-                }
-            }
-        }
-
-        //Update RAxML.LxTx
-        if (unCheckIndex != 0) {
-            operator.updateMSTopos(unChecked);
-            //TODO 3.15
-            operator.runUpdateShell(unChecked.size(), lociNum);
-            for (int i = 0; i < lociNum; i++) {
-                double[] llList = operator.getLocusLL(i, unChecked.size());
-                List locus = topoLLs.get(i);
-                for (int j = 0; j < llList.length; j++) {
-                    Tree scaleGT = operator.scaleGT(operator.getbestGTi(i, j),halfTheta,false);
-
-                    Tuple<Tree, Double> temp = new Tuple<Tree, Double>(scaleGT, llList[j]);
-                    locus.add(temp);
-                }
-
-            }
-            return msTopos;
-        }
-         else {
-             System.out.println("Nothing to update for ");
-                return msTopos;
-        }
-
-    }
-
-
-    //Input: indexes(all >0), tempST, (checkedTopos)
-    //Output: current best & refined GTS
-    //DO: get best gts according to temp ST and topoLLs
-    public List<Tree> getBestGTS(List<Integer> indexes, Network tempST) throws IOException {
-        iterLLSeq = new double[lociNum];
-        iterLLST = new double[lociNum];
-        currentHLL = 0.0;
-        currentLL = 0.0;
-        List<Tree> rGTS = new ArrayList<Tree>(); // scaled RAxML trees
-        List<Tree> locusGTs = new ArrayList<Tree>();
-        List<Double> locusSeqLL;
-        List<Double> locusSTLL;
-        List<Double> bestGTLL = new ArrayList<Double>();
-        List<Integer> bestGTNum = new ArrayList<Integer>();
-
-
-        for (int i = 0; i < lociNum; i++) {
-            double[] llList = new double[refineGTSize];
-            double bestLL = Double.NEGATIVE_INFINITY;
-            int bestGTNumi = 0;
-            locusGTs = new ArrayList<Tree>();
-            locusSeqLL = new ArrayList<Double>();
-            locusSTLL = new ArrayList<Double>();
-            List<Tuple<Tree,Double>> locusTopos = topoLLs.get(i);
-            for(int j = 1; j< refineGTSize; j++){
-                locusGTs.add(locusTopos.get(indexes.get(j)).Item1);
-                locusSeqLL.add(locusTopos.get(indexes.get(j)).Item2);
-            }
-            locusSTLL = operator.getGTSLLBySTYF(locusGTs,tempST);
-
-
-            for (int j = 0; j < refineGTSize; j++) {
-                double tempLL = locusSeqLL.get(j) + locusSTLL.get(j);
-                if (bestLL < tempLL) {
-                    bestLL = tempLL;
-                    bestGTNumi = j;
-                }
-            }
-            rGTS.add(locusGTs.get(bestGTNumi));
-            bestGTLL.add(bestLL);
-            //TODO: get P(gt_j|st)
-            currentLL +=  bestLL;
-            bestGTNum.add(bestGTNumi);
-            iterLLST[i] = locusSTLL.get(bestGTNumi);
-            iterLLSeq[i] = locusSeqLL.get(bestGTNumi);
-            currentHLL += locusSeqLL.get(bestGTNumi);
-            //currentLL += bestLL;
-        }
-
-        return rGTS;
-    }
-
 
     //Input: msTopos, ST, msTopoLL
     //Output: current GTS_nu no external, current LL
@@ -819,7 +646,6 @@ public class syrUGAR {
         List<Integer> bestGTNum = new ArrayList<Integer>();
 
         operator.updateMSTopos(topos);
-        //TODO 3.15
         operator.runUpdateShell(refineGTSize, lociNum);
         for (int i = 0; i < lociNum; i++) {
             double[] llList = operator.getLocusLL(i, refineGTSize);
@@ -1337,3 +1163,4 @@ public class syrUGAR {
 
 
 }
+

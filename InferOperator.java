@@ -91,9 +91,20 @@ public class InferOperator {
         //Users/doriswang/Desktop/output/001/2/50/1/1000/GlobalBestTrees.txt
         //        ifo.MCMC_Compare();
         //ifo.gtOutfitChecker();
-        ifo.gtOutfitChecker("/Users/doriswang/Treefix/venv/treefix-1.1.10/s16/symmetricDist/200_0001_TFTrees.txt");
+
+
+        //ifo.gtOutfitChecker("/Users/doriswang/Treefix/venv/treefix-1.1.10/s16/symmetricDist/200_0001_TFTrees.txt");
+        Tree t1 = Trees.readTree("((((3:1.238,4:1.238):0.84,(1:1.54,2:1.54):0.54):1.718,(6:3.786,(5:2.244,(7:1.596,8:1.596):0.648):1.542):0.01):2.294,((13:1.172,14:1.172):3.072,(((11:1.498,12:1.498):0.564,(9:1.538,10:1.538):0.524):1.084,(15:2.448,16:2.448):0.7):1.096):1.848);");
+        Tree t2 = Trees.readTree("((((9:1.336,10:1.336):0.866,(11:1.974,12:1.974):0.228):0.996,((15:1.162,16:1.162):1.758,(13:1.488,14:1.488):1.432):0.278):2.186,(1:4.204,(2:3.258,((3:1.222,4:1.222):1.784,(6:2.53,(5:2.046,(7:1.172,8:1.172):0.874):0.482):0.476):0.252):0.948):1.178);");
+                //("((((3:1.238,4:1.238):0.84,(1:1.54,2:1.54):0.54):1.718,(6:3.786,(5:2.244,(7:1.596,8:1.596):0.648):1.542):0.01):2.294,((13:1.172,14:1.172):3.072,(((11:1.498,12:1.498):0.564,(9:1.538,10:1.538):0.524):1.084,(15:2.448,16:2.448):0.7):1.096):1.848);");
+        //((((9:1.336,10:1.336):0.866,(11:1.974,12:1.974):0.228):0.996,((15:1.162,16:1.162):1.758,(13:1.488,14:1.488):1.432):0.278):2.186,(1:4.204,(2:3.258,((3:1.222,4:1.222):1.784,(6:2.53,(5:2.046,(7:1.172,8:1.172):0.874):0.482):0.476):0.252):0.948):1.178);
+        System.out.print(ifo.equalTree(t1,t2));
+
+
+
         //ifo.gtOutfitChecker("/Users/doriswang/Desktop/output/0001/10/50/", ifo.InputPath + "input/0001/", 10, 10, 200);
         ///Users/doriswang/Treefix/venv/treefix-1.1.10/s16/a-AsmtTrees/1000_001_TFTrees.txt
+
     }
 
     // For Treefix: Check the RF_distance (trueST, TF_AST_ST)
@@ -756,6 +767,128 @@ public class InferOperator {
         return aln;
     }
 
+    //load seq data from raxml
+    //TODO RAxML path
+    public List<Alignment> loadSYRSeq48(int lociNum, String inputPath, int taxaNum, List<Alignment> trueSeq) throws IOException {
+        //"seq_" + tid + "_" + seqLen +".nex";scale + "/seq_" + i + "_" + len + ".nex"
+        List<Alignment> fullalns = new ArrayList<Alignment>();
+        for(int l = 0; l<lociNum; l++){
+            Map<String, String> locus = new HashMap<String, String>(); //20 taxa except 1
+            Map<String, String> fullLocus = new HashMap<String, String>(); // 21 taxa include i(OG)
+            String inputFile = inputPath + l + "/seq1.phy";
+            String inputFile2 = inputPath + l + "/seq2.phy";
+            BufferedReader br = new BufferedReader(new FileReader(inputFile));
+            BufferedReader br2 = new BufferedReader(new FileReader(inputFile2));
+            String line = "";
+            String[] temp;
+            String line2 = "";
+            String[] temp2;
+            line = br.readLine().trim();
+            br2.readLine().trim();
+            temp = line.split(" ");
+            BufferedWriter phy = new BufferedWriter(new FileWriter(_RAxMLdir  + l + "/dna.phy"));
+            phy.write(taxaNum + " " + temp[1] + '\n');
+            phy.flush();
+            for (int i = 0; i < 26; i++) {
+                line = br.readLine().trim();
+                temp = line.split("\t");
+                if (temp.length > 2) {
+                    temp[1] = temp[2];
+                }
+                String lociName = temp[0];
+                //String seq = temp[1].substring(0, seqLength);
+                locus.put(lociName, temp[1]);
+                fullLocus.put(lociName, temp[1]);
+
+                line2 = br2.readLine().trim();
+                temp2 = line2.split("\t");
+                if(temp2.length > 2)
+                    temp2[1] = temp2[2];
+
+                int tempIndex = Integer.valueOf(temp2[0].toString()) + 26;
+                String lociName2 = String.valueOf(tempIndex);
+                locus.put(lociName2,temp2[1]);
+                fullLocus.put(lociName2, temp2[1]);
+            }
+            locus.remove("0");
+            locus.remove("1");
+            locus.remove("26");
+            locus.remove("27");
+            //locus.remove("21");
+            br.close();
+            Alignment fullAln = new Alignment(fullLocus);
+            Alignment aln = new Alignment(locus);
+            trueSeq.add(aln);
+            fullalns.add(fullAln);
+
+
+            List<String> names = aln.getTaxaNames();
+            Map<String, String> thisAln = aln.getAlignment();
+            for (int i = 0; i < taxaNum; i++) {
+                String name = names.get(i);
+                String seq = thisAln.get(name);
+                phy.write(name + '\t' + seq + '\n');
+            }
+            phy.flush();
+            phy.close();
+        }
+
+        return trueSeq;
+    }
+
+    //load seq data from raxml
+    //TODO RAxML path
+    public List<Alignment> loadSYRSeq(int lociNum, String inputPath, int taxaNum, List<Alignment> trueSeq) throws IOException {
+        //"seq_" + tid + "_" + seqLen +".nex";scale + "/seq_" + i + "_" + len + ".nex"
+       List<Alignment> fullalns = new ArrayList<Alignment>();
+        for(int l = 0; l<lociNum; l++){
+            Map<String, String> locus = new HashMap<String, String>(); //20 taxa except 1
+            Map<String, String> fullLocus = new HashMap<String, String>(); // 21 taxa include i(OG)
+            String inputFile = inputPath + l + "/seq1.phy";
+            BufferedReader br = new BufferedReader(new FileReader(inputFile));
+            String line = "";
+            String[] temp;
+            line = br.readLine().trim();
+            temp = line.split(" ");
+            BufferedWriter phy = new BufferedWriter(new FileWriter(_RAxMLdir  + l + "/dna.phy"));
+            phy.write(taxaNum + " " + temp[1] + '\n');
+            phy.flush();
+            for (int i = 0; i < taxaNum+2; i++) {
+                line = br.readLine().trim();
+                temp = line.split(("\t"));
+                if (temp.length > 2) {
+                    temp[1] = temp[2];
+                }
+                String lociName = temp[0];
+                //String seq = temp[1].substring(0, seqLength);
+                locus.put(lociName, temp[1]);
+                fullLocus.put(lociName, temp[1]);
+            }
+            locus.remove("0");
+            locus.remove("1");
+            //locus.remove("3");
+            //locus.remove("11");
+            //locus.remove("21");
+            br.close();
+            Alignment fullAln = new Alignment(fullLocus);
+            Alignment aln = new Alignment(locus);
+            trueSeq.add(aln);
+            fullalns.add(fullAln);
+
+
+            List<String> names = aln.getTaxaNames();
+            Map<String, String> thisAln = aln.getAlignment();
+            for (int i = 0; i < taxaNum; i++) {
+                String name = names.get(i);
+                String seq = thisAln.get(name);
+                phy.write(name + '\t' + seq + '\n');
+            }
+            phy.flush();
+            phy.close();
+        }
+
+        return trueSeq;
+    }
 
     //load seq data from raxml
     //TODO RAxML path
@@ -765,8 +898,7 @@ public class InferOperator {
         Map<String, String> fullLocus = new HashMap<String, String>(); // 21 taxa include i(OG)
         List<Alignment> fullalns = new ArrayList<Alignment>();
         for(int l = 0; l<lociNum; l++){
-            String inputFile ="/Users/doriswang/PhyloNet/Data/syr/38LocusData/"
-                    + l + "/seq1.phy";
+            String inputFile = l + "/seq1.phy";
             BufferedReader br = new BufferedReader(new FileReader(inputFile));
             String line = "";
             String[] temp;
@@ -1227,6 +1359,21 @@ public class InferOperator {
 
         return gProST;
     }
+
+//    // input: gtLL( P(seq|topos), topos (refined by RAxML), st
+//    //output:
+//    //if not return -> add st height on all leaves
+//    public List<Double> getRGTSLLBySTYF(List<Double> gtLL, List<Tree> topos, Network<NetNodeInfo> currentST) {
+//        List<Double> gProST = new ArrayList<>();
+//        double[] result = new double[geneTrees.size()];
+//        Network<NetNodeInfo> ultraST = getUltraST(currentST.toString());
+//        GeneTreeWithBranchLengthProbabilityYF g = new GeneTreeWithBranchLengthProbabilityYF(ultraST, geneTrees, null);
+//        g.calculateGTDistribution(result);
+//        for (int i = 0; i < result.length; i++)
+//            gProST.add(Math.log(result[i]));
+//
+//        return gProST;
+//    }
 
     //
     public double getStandardDevition(double[] array){
@@ -1985,6 +2132,80 @@ public class InferOperator {
         }
         return tList;
     }
+
+    public boolean equalTree(Tree t1, Tree t2){
+        TNode n1 = t1.getRoot();
+        TNode n2 = t2.getRoot();
+        return ifSameSubTree(n1,n2);
+    }
+
+
+    public boolean ifSameLeaf(TNode n1 , TNode n2){
+        return n1.getName().equals(n2.getName());
+    }
+
+    public boolean ifSameSubTree(TNode n1 , TNode n2){
+        List<TNode> l = new ArrayList<TNode>();
+        List<TNode> lSub = new ArrayList<TNode>();
+        Iterator it = n1.getChildren().iterator();
+        while(it.hasNext()){
+            TNode temp = (TNode)it.next();
+            if(temp.isLeaf())
+                l.add(temp);
+            else
+                lSub.add(temp);
+        }
+        List<TNode> r = new ArrayList<TNode>();
+        List<TNode> rSub = new ArrayList<TNode>();
+        it = n2.getChildren().iterator();
+        while(it.hasNext()){
+            TNode temp = (TNode)it.next();
+            if(temp.isLeaf())
+                r.add(temp);
+            else
+                rSub.add(temp);
+        }
+        if(l.size()!=r.size())
+            return false;
+        else {
+            if(l.size()==1){
+                if(ifSameLeaf(l.get(0), r.get(0)))
+                    return ifSameSubTree(lSub.get(0),rSub.get(0));
+                else
+                    return false;
+            }
+            else if(l.size()==2){
+                if(ifSameLeaf(l.get(0), r.get(0)))
+                    return ifSameLeaf(l.get(1), r.get(1));
+
+                else if(ifSameLeaf(l.get(0), r.get(1)))
+                    return ifSameLeaf(l.get(1), r.get(0));
+
+                else
+                    return false;
+            }
+            else{
+                if(ifSameSubTree(lSub.get(0), rSub.get(0)))
+                    return ifSameSubTree(lSub.get(1), rSub.get(1));
+
+                else if(ifSameSubTree(lSub.get(0), rSub.get(1)))
+                    return ifSameSubTree(lSub.get(1), rSub.get(0));
+
+                else
+                    return false;
+
+            }
+        }
+
+    }
+
+    public Tree getSubTree(Tree t, TNode n){
+        TNode p = n.getParent();
+        Tree temp = Trees.readTree(t.toNewick());
+        temp.rerootTreeAtNode(n);
+        return temp;
+    }
+
 
     public List<String> getMSTopos(List<Tree> msGTS, List<String> checkedTopo){
         List<String> topos = new ArrayList<String>();
